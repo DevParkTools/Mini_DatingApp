@@ -2154,7 +2154,8 @@ function arrive(id,at,p,entry){
     updateBadge();
     if(state.view==='matches')renderMatches();
     notify();
-    if(!AUTH_VIEWS[state.view])toast('새로운 매칭이 등장했습니다',true);
+    if(!delayed&&state.view==='deck')showMatch(m);
+    else if(!AUTH_VIEWS[state.view])toast('새로운 매칭이 등장했습니다',true);
     if(m.msgs.length)queueReply(m);
   },Math.max(0,at-Date.now()));
 }
