@@ -1,0 +1,4162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#0b0c0f">
+<title>Spark</title>
+<style>
+:root{--pink:#fd3a6c;--orange:#ff7a45;--green:#21d07a;--blue:#3aa8ff;--gold:#ffc83a}
+#app,#app[data-theme="dark"]{--bg:#0b0c0f;--panel:#181b21;--line:#262a33;--text:#f3f4f6;--sub:#9aa1ad}
+#app[data-theme="light"]{--bg:#fff;--panel:#f2f3f6;--line:#e8eaee;--text:#16181d;--sub:#6b7280}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:#050608;color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic',system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-user-select:none;user-select:none;display:flex;justify-content:center;align-items:center}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+svg{display:block}
+#app{position:relative;display:flex;flex-direction:column;width:100%;height:100vh;height:100dvh;background:var(--bg);color:var(--text);overflow:hidden;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+@media (min-width:640px) and (min-height:560px){
+  #app{max-width:460px;height:min(calc(100vh - 32px),920px);height:min(calc(100dvh - 32px),920px);border-radius:30px;box-shadow:0 0 0 1px #262a33,0 30px 80px rgba(0,0,0,.6);padding-left:0;padding-right:0}
+}
+#views{flex:1;min-height:0;min-width:0;position:relative;display:flex;flex-direction:column}
+.view{display:none;flex:1;min-height:0;flex-direction:column}
+.view.active{display:flex}
+#nav{flex:none;display:flex;justify-content:space-around;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+#app[data-auth="1"] #nav,#app[data-view="chat"] #nav{display:none}
+.ntab{position:relative;width:64px;height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--sub)}
+.ntab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ntab.on{color:var(--text)}
+.ntab.on svg{fill:currentColor}
+.ntab .badge{position:absolute;top:6px;right:11px;width:11px;height:11px;border-radius:50%;background:var(--pink);border:2px solid var(--bg)}
+#view-deck{position:relative}
+#stage{position:absolute;inset:0;display:flex;justify-content:center;background:var(--bg)}
+#frame{position:relative;width:100%;max-width:640px;height:100%}
+#stack{position:absolute;inset:0;touch-action:none}
+.card{position:absolute;inset:0;border-radius:0 0 26px 26px;overflow:hidden;background:#222;will-change:transform;touch-action:none;transform-origin:50% 85%;transition:transform .34s cubic-bezier(.2,1.25,.4,1),opacity .3s}
+.card[data-d="0"]{z-index:3}
+.card[data-d="1"]{z-index:2;transform:translateY(10px) scale(.96)}
+.card[data-d="2"]{z-index:1;transform:translateY(20px) scale(.92);opacity:.7}
+.card[data-d="out"]{z-index:4}
+#stack.dragging .card,#stack.dragging .stamp{transition:none}
+.card.fly{transition:transform .42s cubic-bezier(.3,.1,.6,1),opacity .42s ease-in;pointer-events:none}
+.card.back{animation:back .36s cubic-bezier(.2,.9,.3,1.1)}
+.card.nudge{animation:nudge .22s}
+@keyframes back{from{transform:translate3d(0,-14%,0) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes nudge{0%,100%{transform:none}30%{transform:translateX(-7px)}70%{transform:translateX(7px)}}
+.pattern{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.pattern i{position:absolute;font-style:normal;opacity:.14}
+.cbody{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:84px 18px 104px;color:#fff}
+.chead{display:flex;align-items:center;gap:14px}
+.avatarBig{flex:none;width:clamp(72px,12vh,96px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:clamp(38px,6.5vh,52px);background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5)}
+.heroTxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.name{font-size:clamp(26px,4.2vh,34px);font-weight:800;line-height:1.15}
+.age{font-weight:400}
+.meta{font-size:15px;opacity:.92}
+.quote{background:rgba(0,0,0,.24);border-radius:22px;padding:18px 18px 20px;display:flex;flex-direction:column;gap:8px}
+.cap{font-size:12px;font-weight:700;letter-spacing:1px;opacity:.78;margin-bottom:6px}
+.quote .cap{margin-bottom:0}
+.qtext{font-size:clamp(17px,2.6vh,21px);line-height:1.55;word-break:keep-all}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cfact{background:rgba(255,255,255,.16);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.fact span{font-size:12px;opacity:.78}
+.fact b{font-size:14px}
+.initial{width:clamp(96px,26vmin,170px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:clamp(48px,14vmin,88px);font-weight:800;background:rgba(255,255,255,.2);border:3px solid rgba(255,255,255,.55)}
+.ichips{display:flex;flex-wrap:wrap;gap:8px}
+.ichips span{padding:7px 14px;border-radius:999px;background:rgba(30,32,40,.72);border:1px solid rgba(255,255,255,.18);font-size:14px;font-weight:600}
+.ichips span.on{background:rgba(190,150,255,.38);border-color:rgba(230,190,255,.8)}
+.infoBtn{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.2);backdrop-filter:blur(6px)}
+.infoBtn svg{width:22px;height:22px}
+.stamp{position:absolute;padding:4px 12px;border:4px solid;border-radius:10px;font-weight:800;font-size:clamp(24px,5vmin,36px);letter-spacing:2px;opacity:0;pointer-events:none;z-index:4;transition:opacity .2s;white-space:nowrap}
+.stamp.like{top:110px;left:20px;color:var(--green);border-color:var(--green);transform:rotate(-14deg)}
+.stamp.nope{top:110px;right:20px;color:var(--pink);border-color:var(--pink);transform:rotate(14deg)}
+.stamp.super{left:50%;bottom:42%;color:var(--blue);border-color:var(--blue);translate:-50% 0}
+#deckTop{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 26px;overflow-x:auto;scrollbar-width:none;pointer-events:none;background:linear-gradient(rgba(0,0,0,.5),rgba(0,0,0,0))}
+#deckTop::-webkit-scrollbar{display:none}
+.fpill{pointer-events:auto;flex:none;padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.42);color:#fff;font-weight:700;font-size:14px;white-space:nowrap;backdrop-filter:blur(6px)}
+.fpill.on{background:#fff;color:#111}
+#actions{position:absolute;left:0;right:0;bottom:14px;z-index:10;display:flex;justify-content:center;align-items:center;gap:clamp(10px,3vw,18px);pointer-events:none}
+.rbtn{pointer-events:auto;width:54px;height:54px;border-radius:50%;border:2px solid currentColor;background:rgba(18,20,26,.74);backdrop-filter:blur(8px);display:grid;place-items:center;transition:transform .12s,opacity .2s}
+.rbtn.lg{width:66px;height:66px}
+.rbtn svg{width:48%;height:48%}
+.rbtn:active{transform:scale(.86)}
+.rbtn:disabled{opacity:.3;pointer-events:none}
+.rbtn.rewind{color:var(--gold)}
+.rbtn.nope{color:var(--pink)}
+.rbtn.super{color:var(--blue)}
+.rbtn.like{color:var(--green)}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;color:#9aa1ad;padding:20px}
+#empty .big{font-size:56px}
+.pill{padding:12px 22px;border-radius:999px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--pink),var(--orange))}
+.page{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(18px + env(safe-area-inset-top)) 16px 20px}
+.hHead{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.hTitle{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.cntBadge{min-width:26px;height:26px;padding:0 8px;border-radius:13px;background:linear-gradient(135deg,var(--pink),var(--orange));color:#fff;font-weight:800;font-size:14px;display:grid;place-items:center}
+.secTitle{font-size:18px;font-weight:800;margin:8px 0 10px}
+.chipRow{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.sortChip{flex:none;padding:8px 14px;border-radius:999px;border:1px solid var(--line);font-weight:600;font-size:14px;white-space:nowrap}
+.sortChip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.hero{width:100%;text-align:left;border-radius:20px;padding:22px 20px;color:#fff;background:linear-gradient(135deg,#7b4dff,#fd3a6c);display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+.hero b{font-size:22px}
+.hero span{font-size:14px;opacity:.92}
+.catGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px}
+.cat{border-radius:16px;padding:16px 12px;background:var(--panel);display:flex;flex-direction:column;gap:8px;align-items:flex-start;text-align:left}
+.cat .em{font-size:30px}
+.cat b{font-size:15px}
+.hscroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.lcard{position:relative;border-radius:18px;overflow:hidden;color:#fff;aspect-ratio:.74;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;gap:8px;cursor:pointer}
+.hscroll .lcard{flex:none;width:min(62%,230px);scroll-snap-align:start}
+.linit{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:54px;font-weight:800;opacity:.85}
+.lbody{position:relative;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.lname{font-size:18px;font-weight:800}
+.lname span{font-weight:400}
+.lmeta{font-size:13px;opacity:.92}
+.lbtns{position:relative;display:flex;justify-content:space-between;gap:8px}
+.lb{flex:1;height:40px;border-radius:999px;background:#fff;display:grid;place-items:center}
+.lb svg{width:20px;height:20px}
+.lb.x{color:var(--pink)}
+.lb.h{color:var(--green)}
+.search{width:100%;padding:12px 16px;border-radius:999px;background:var(--panel);border:0;font-size:16px;color:var(--text);outline:none;margin-bottom:16px;-webkit-user-select:text;user-select:text}
+.strip{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;margin-bottom:8px}
+.ntile{flex:none;width:92px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.ntile .face{width:92px;height:116px;border-radius:14px;display:grid;place-items:center;font-size:36px;font-weight:800;color:#fff}
+.ntile.likeTile .face{background:linear-gradient(160deg,#ffcf5a,#ff8a3d);font-size:28px}
+.ntile span{font-size:13px;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:10px 4px;border-radius:14px;text-align:left}
+.avatar{position:relative;flex:none;width:56px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:26px;font-weight:800;color:#fff}
+.avatar.mini{width:30px;font-size:14px}
+.status{position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;border-radius:50%;border:2px solid var(--bg);background:var(--green)}
+.rowText{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rowText b{font-size:16px}
+.rowText em{font-style:normal;font-size:14px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turn{flex:none;padding:4px 10px;border-radius:999px;background:#ffd84a;color:#2a2200;font-size:12px;font-weight:800}
+.dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--pink)}
+.emptyNote{color:var(--sub);text-align:center;padding:40px 10px;line-height:1.6}
+.meBox{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:6px}
+.meAv{width:110px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:58px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--pink),var(--orange))}
+.meName{font-size:24px;font-weight:800}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;margin-top:6px}
+.stat{background:var(--panel);border-radius:14px;padding:12px 4px;text-align:center}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--sub)}
+.meBio{color:var(--sub);text-align:center;line-height:1.5;max-width:320px;word-break:keep-all}
+.btnRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btnRow .pill.ghost{background:none;border:2px solid var(--line);color:var(--text)}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.tags span{padding:6px 14px;border-radius:999px;border:1px solid var(--line);font-size:14px}
+#view-chat{background:#f1f2f5;color:#16181d;--bg:#fff;--panel:#f2f3f6;--line:#e8eaee;--text:#16181d;--sub:#6b7280}
+.chatHead{flex:none;display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));background:var(--bg);border-bottom:1px solid var(--line)}
+.back{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}
+.back svg{width:24px;height:24px}
+.chatHead .avatar{width:40px;font-size:20px}
+.chatHead b{font-size:17px}
+.aiTag{padding:2px 7px;border-radius:6px;background:var(--panel);color:var(--sub);font-size:11px;font-weight:800}
+#chatLog{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.sep{align-self:center;color:var(--sub);font-size:12px;margin:8px 0 2px}
+.msg{display:flex;align-items:flex-end;gap:8px}
+.msg.me{flex-direction:column;align-items:flex-end;gap:3px}
+.bubble{position:relative;max-width:78%;padding:10px 14px;border-radius:20px;font-size:15px;line-height:1.4;word-break:break-word;-webkit-user-select:text;user-select:text}
+.msg.them .bubble{background:#fff;color:#16181d;border:1px solid var(--line);border-bottom-left-radius:6px;cursor:pointer}
+.msg.me .bubble{background:#7a1f3d;color:#fff;border-bottom-right-radius:6px}
+.sentTag{font-size:11px;color:var(--sub);display:flex;gap:6px;align-items:center}
+.sentTag b{color:#f2b100;font-weight:800}
+.mt{align-self:flex-end;font-size:11px;color:var(--sub);white-space:nowrap}
+.hrt{position:absolute;right:-8px;bottom:-9px;width:22px;height:22px;border-radius:50%;background:#fff;color:var(--pink);display:grid;place-items:center;font-size:13px;font-style:normal;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.bubble.typing{display:flex;gap:4px;align-items:center;padding:14px}
+.bubble.typing i{width:7px;height:7px;border-radius:50%;background:var(--sub);animation:blink 1s infinite}
+.bubble.typing i:nth-child(2){animation-delay:.15s}
+.bubble.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+#chatForm{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line)}
+#chatInput{flex:1;min-width:0;background:var(--panel);border:0;border-radius:999px;padding:12px 18px;font-size:16px;color:var(--text);outline:none;-webkit-user-select:text;user-select:text}
+#chatForm .send{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#b4b9c3;background:var(--panel);transition:background .15s,color .15s}
+#chatForm .send svg{width:22px;height:22px}
+#chatForm .send.ready{color:#fff;background:linear-gradient(135deg,var(--pink),var(--orange))}
+#sheet{--bg:#fff;--panel:#f2f3f6;--line:#e8eaee;--text:#16181d;--sub:#6b7280;position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;background:var(--bg);color:var(--text);transform:translateY(100%);visibility:hidden;transition:transform .34s cubic-bezier(.2,.9,.3,1),visibility 0s linear .34s}
+#sheet.open{transform:none;visibility:visible;transition-delay:0s}
+.sheetBody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheetPhoto{position:relative;height:min(34vh,280px);display:flex;align-items:center;justify-content:center;color:#fff}
+.sheetClose{position:absolute;right:16px;bottom:-22px;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--pink),var(--orange));color:#fff;z-index:3;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+.sheetClose svg{width:26px;height:26px}
+.sheetText{padding:28px 20px 20px}
+.sheetText h2{font-size:28px}
+.sheetText .sub{color:var(--sub);margin-top:6px;font-size:15px}
+.sheetText .bio{margin-top:16px;line-height:1.6;font-size:16px}
+.sheetActions{flex:none;display:flex;justify-content:center;gap:18px;padding:10px 0 calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg)}
+.act{width:62px;aspect-ratio:1;border-radius:50%;border:2px solid currentColor;background:var(--bg);display:grid;place-items:center;transition:transform .12s}
+.act svg{width:48%;height:48%}
+.act.sm{width:50px}
+.act:active{transform:scale(.86)}
+.act.nope{color:var(--pink)}
+.act.super{color:var(--blue)}
+.act.like{color:var(--green)}
+#match{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,3vmin,20px);padding:20px;text-align:center;color:#fff;background:linear-gradient(160deg,rgba(253,58,108,.97),rgba(255,122,69,.97));opacity:0;visibility:hidden;transition:opacity .25s,visibility 0s linear .25s}
+#match.open{opacity:1;visibility:visible;transition-delay:0s}
+#match h1{font-size:clamp(26px,6.5vmin,40px);font-weight:800;font-style:italic}
+#match p{font-size:clamp(14px,2.6vmin,17px);opacity:.95}
+.mAvs{display:flex}
+.mAv{width:clamp(64px,18vmin,120px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:clamp(34px,10vmin,62px);font-weight:800;border:4px solid #fff;background:rgba(255,255,255,.25)}
+.mAv+.mAv{margin-left:-14px}
+#match.open .mAv:first-child{animation:popL .5s cubic-bezier(.2,1.4,.4,1)}
+#match.open .mAv:last-child{animation:popR .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes popL{from{transform:translateX(-60px) scale(.5);opacity:0}}
+@keyframes popR{from{transform:translateX(60px) scale(.5);opacity:0}}
+.mBtns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.mBtns button{padding:12px 22px;border-radius:999px;font-weight:700}
+.mBtns .solid{background:#fff;color:var(--pink)}
+.mBtns .ghost{border:2px solid #fff}
+.auth{overflow-y:auto;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom))}
+#view-splash{justify-content:center;align-items:center;text-align:center;gap:14px;background:radial-gradient(120% 80% at 50% 0%,rgba(253,58,108,.35),transparent 60%),var(--bg)}
+.logo{font-size:clamp(52px,14vmin,84px);font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,var(--pink),var(--orange));-webkit-background-clip:text;background-clip:text;color:transparent;animation:logoIn .7s cubic-bezier(.2,1.2,.4,1)}
+@keyframes logoIn{from{transform:scale(.7);opacity:0}}
+.tagline{color:var(--sub);font-size:16px}
+.col{display:flex;flex-direction:column;gap:12px;width:100%;max-width:360px;margin-top:28px}
+.btnMain{padding:15px 22px;border-radius:999px;font-weight:800;font-size:16px;color:#fff;background:linear-gradient(135deg,var(--pink),var(--orange));width:100%}
+.btnGhost{padding:14px 22px;border-radius:999px;font-weight:700;font-size:16px;border:2px solid var(--line);width:100%}
+.btnMain:disabled{opacity:.5}
+.authBox{margin:auto;width:100%;max-width:400px;display:flex;flex-direction:column;gap:14px}
+.authBox h2{font-size:26px;font-weight:800}
+.authBox .hint{color:var(--sub);font-size:14px;margin-top:-6px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--sub);font-weight:600}
+.field input,.field select,.field textarea{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:16px;color:var(--text);outline:none;font-family:inherit;-webkit-user-select:text;user-select:text;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--pink)}
+.field textarea{resize:none;min-height:96px}
+.field .cnt{align-self:flex-end;font-size:12px;color:var(--sub)}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:12px 0;border-radius:14px;border:1px solid var(--line);background:var(--panel);font-weight:600}
+.seg button.on{border-color:var(--pink);color:var(--pink);background:rgba(253,58,108,.12)}
+.err{color:var(--pink);font-size:14px;min-height:18px}
+.linkBtn{color:var(--sub);font-size:14px;text-align:center;padding:6px}
+.linkBtn b{color:var(--pink)}
+.field input.bad,.field textarea.bad{border-color:var(--pink);box-shadow:0 0 0 3px rgba(253,58,108,.18)}
+.seg.bad button{border-color:var(--pink)}
+.btnDebug{align-self:center;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:700;color:var(--gold);border:1px dashed var(--gold)}
+#toast{position:absolute;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:60;max-width:calc(100% - 32px);padding:12px 18px;border-radius:14px;background:#2a1117;border:1px solid var(--pink);color:#fff;font-size:14px;font-weight:600;line-height:1.4;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:transform .28s cubic-bezier(.2,1,.3,1),opacity .2s}
+#toast.show{transform:translate(-50%,0);opacity:1}
+#toast.soft{background:#1d2027;border-color:#3a3f4a}
+.ntab span{font-size:11px}
+.ntab.on span{font-weight:800}
+.ntab .cntb{position:absolute;top:0;right:8px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#c0261b;color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+#app[data-view="settings"] #nav,#app[data-view="discover"] #nav{display:none}
+.page.gray{background:#e4e3e5}
+.panel{display:block;width:100%;text-align:left;background:#f1f0f1;border-radius:22px;padding:18px 20px;margin-bottom:12px;color:#16181d}
+.pTitle{font-size:17px;font-weight:700;margin-bottom:12px}
+.rowBetween{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:17px}
+.rowBetween em{font-style:normal;color:#555;font-size:16px}
+.subHead{flex:none;display:flex;align-items:center;gap:18px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));background:#f4f3f4;box-shadow:0 1px 4px rgba(0,0,0,.15);color:#16181d;z-index:2}
+.subHead b{font-size:19px;font-weight:700}
+.note{font-size:14px;color:#555;margin:-4px 4px 14px}
+.modeRow{display:flex;gap:8px;flex-wrap:wrap}
+.modeRow button{padding:12px 18px;border-radius:999px;border:1px solid #d6d5d7;color:#555;font-size:15px}
+.modeRow button.on{border:2px solid #16181d;color:#16181d;font-weight:700}
+.locRow{display:flex;align-items:center;gap:12px;font-size:19px}
+.locRow svg{width:26px;height:26px}
+.rng{width:100%;margin:14px 0;accent-color:#c0261b;height:28px}
+.toggleRow{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:16px;line-height:1.5;margin-top:6px}
+.switch{flex:none;width:58px;height:34px;border-radius:17px;background:#b9b8ba;position:relative;transition:background .15s}
+.switch i{position:absolute;top:3px;left:3px;width:28px;height:28px;border-radius:50%;background:#fff;transition:left .15s}
+.switch.on{background:#c0261b}
+.switch.on i{left:27px}
+.segl{display:flex;gap:8px;margin-top:12px}
+.segl button{flex:1;padding:12px 0;border-radius:14px;border:1px solid #d6d5d7;font-weight:600;color:#555}
+.segl button.on{border:2px solid #16181d;color:#16181d}
+.meHead{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.meHead .meAv{flex:none;width:84px;height:84px;border-radius:22px;font-size:40px}
+.meInfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.meHead .meName{font-size:26px;font-weight:800;color:#16181d}
+.linkLike{align-self:flex-start;color:#555;font-size:16px}
+.roundBtn{flex:none;width:52px;height:52px;border-radius:50%;background:#d9d8da;display:grid;place-items:center;color:#16181d}
+.roundBtn svg{width:26px;height:26px}
+.infoChips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.ichip{padding:11px 16px;border-radius:999px;background:#f4f3f4;font-size:14px;color:#16181d}
+.qaGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.qa{background:#fff;border-radius:22px;padding:22px 18px;display:flex;flex-direction:column;gap:14px;min-height:170px;color:#16181d}
+.qa span{font-size:14px;color:#666}
+.qa b{font-size:19px;line-height:1.4;word-break:keep-all}
+.statBar{display:flex;justify-content:space-around;gap:6px;flex-wrap:wrap;background:#fff;border-radius:999px;padding:14px 12px;margin:16px 0;font-size:14px;color:#16181d}
+.statBar b{font-weight:800}
+.dangerRow{color:#c0261b;font-weight:700}
+@media (max-width:420px){.qaGrid{grid-template-columns:1fr 1fr}.qa b{font-size:17px}}
+.page,.auth,#chatLog,.sheetBody,#matchList{overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.hscroll,.strip,.chipRow,#deckTop{overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+@media (hover:hover) and (pointer:fine){.hscroll,.strip,.chipRow,#deckTop{cursor:grab}.hscroll.drag,.strip.drag,.chipRow.drag,#deckTop.drag{cursor:grabbing}.hscroll::-webkit-scrollbar,.strip::-webkit-scrollbar{height:6px}}
+.page,.auth{scrollbar-width:thin}
+
+.view.active{animation:viewIn .3s ease-out}
+#view-chat.active{animation:slideIn .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(40px)}}
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.96)}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.92)}}
+@keyframes navPop{0%{transform:scale(.7)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(70px) scale(.9)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+@keyframes ring{0%{transform:scale(.2);opacity:.9}100%{transform:scale(1);opacity:0}}
+@keyframes blip{0%,15%{opacity:0;scale:.3}30%{opacity:1;scale:1.25}45%,70%{opacity:1;scale:1}100%{opacity:0;scale:.6}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 0 rgba(253,58,108,0))}50%{filter:drop-shadow(0 0 18px rgba(253,58,108,.75))}}
+@keyframes drift{0%{transform:translateY(0) rotate(0);opacity:0}15%{opacity:.7}100%{transform:translateY(-110vh) rotate(40deg);opacity:0}}
+@keyframes pt{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}15%{opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--rot)) scale(1);opacity:0}}
+@keyframes rise2{0%{transform:translateY(0);opacity:0}10%{opacity:1}100%{transform:translateY(-115vh) rotate(30deg);opacity:0}}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(33,208,122,.6)}100%{box-shadow:0 0 0 8px rgba(33,208,122,0)}}
+.ntab.on svg{animation:navPop .38s}
+.stag>*{animation:rise .45s cubic-bezier(.2,.9,.3,1) both}
+.stag>*:nth-child(2){animation-delay:.05s}
+.stag>*:nth-child(3){animation-delay:.1s}
+.stag>*:nth-child(4){animation-delay:.15s}
+.stag>*:nth-child(5){animation-delay:.2s}
+.stag>*:nth-child(6){animation-delay:.25s}
+.stag>*:nth-child(7){animation-delay:.3s}
+.stag>*:nth-child(8){animation-delay:.35s}
+.stag>*:nth-child(n+9){animation-delay:.4s}
+#stack.enter .card[data-d="0"]{animation:cardIn .55s cubic-bezier(.2,1.1,.4,1) both}
+#stack.enter .card[data-d="1"]{animation:cardIn .55s .1s cubic-bezier(.2,1.1,.4,1) both}
+#stack.enter .card[data-d="2"]{animation:cardIn .55s .2s cubic-bezier(.2,1.1,.4,1) both}
+#actions.enter .rbtn{animation:pop .5s both}
+#actions.enter .rbtn:nth-child(2){animation-delay:.08s}
+#actions.enter .rbtn:nth-child(3){animation-delay:.16s}
+#actions.enter .rbtn:nth-child(4){animation-delay:.24s}
+.msg.new{animation:msgIn .28s cubic-bezier(.2,.9,.3,1)}
+.hrt.fresh{animation:pop .35s}
+#chatForm .send.ready{animation:pop .3s}
+.status,.online i{animation:ping 1.8s infinite}
+#fx{position:absolute;inset:0;pointer-events:none;z-index:18;overflow:hidden}
+.pt{position:absolute;left:var(--x);top:var(--y);font-size:var(--s);font-style:normal;animation:pt .85s ease-out forwards;will-change:transform,opacity}
+.mh{position:absolute;bottom:-40px;left:var(--l);font-size:var(--s);font-style:normal;opacity:0;animation:rise2 var(--t) ease-in var(--d) forwards;pointer-events:none}
+#match{overflow:hidden}
+.floaters{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.floaters i{position:absolute;bottom:-40px;left:var(--l);font-size:var(--s);font-style:normal;opacity:0;animation:drift var(--t) linear var(--d) infinite}
+#view-splash .logo{animation:logoIn .7s cubic-bezier(.2,1.2,.4,1),glow 2.4s ease-in-out .7s infinite}
+#view-splash .tagline{animation:fadeUp .7s .35s both}
+#splashBtns>*{animation:fadeUp .5s both}
+#splashBtns>*:nth-child(2){animation-delay:.1s}
+#splashBtns>*:nth-child(3){animation-delay:.2s}
+#finding{position:absolute;inset:0;z-index:25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;background:radial-gradient(120% 80% at 50% 30%,#3a1230,#0b0c0f 70%);color:#fff;opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s linear .35s}
+#finding.on{opacity:1;visibility:visible;transition-delay:0s}
+.radar{position:relative;width:min(70vmin,280px);aspect-ratio:1;display:grid;place-items:center}
+.radar>i{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(253,58,108,.55);opacity:0}
+#finding.on .radar>i{animation:ring 2.4s ease-out infinite}
+.radar>i:nth-child(2){animation-delay:.8s!important}
+.radar>i:nth-child(3){animation-delay:1.6s!important}
+.sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,rgba(253,58,108,0) 0deg,rgba(253,58,108,.4) 60deg,rgba(253,58,108,0) 61deg)}
+#finding.on .sweep{animation:spin 2s linear infinite}
+.core{position:relative;z-index:2;width:30%;aspect-ratio:1;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--orange));display:grid;place-items:center;font-size:clamp(24px,8vmin,40px)}
+#finding.on .core{animation:beat 1s ease-in-out infinite}
+.blip{position:absolute;left:50%;top:50%;font-size:26px;font-style:normal;transform:translate(-50%,-50%) rotate(var(--a)) translateY(calc(var(--r) * -1)) rotate(calc(var(--a) * -1));opacity:0}
+#finding.on .blip{animation:blip 2.4s ease-in-out infinite;animation-delay:var(--d)}
+.ftext{font-size:20px;font-weight:800;min-height:28px;text-align:center;padding:0 20px}
+.fdots{display:flex;gap:6px}
+.fdots i{width:8px;height:8px;border-radius:50%;background:#fff;opacity:.3}
+#finding.on .fdots i{animation:blink 1s infinite}
+.fdots i:nth-child(2){animation-delay:.15s!important}
+.fdots i:nth-child(3){animation-delay:.3s!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+.card .cbody{justify-content:flex-end;gap:12px;padding:84px 20px 108px}
+.card .qtext{font-size:17px;line-height:1.5;font-weight:500}
+.card .heroTxt .name{font-size:32px}
+.card .heroTxt .meta{margin-top:4px;opacity:.85}
+.card .avatarBig{width:64px;font-size:34px}
+.card .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#21d07a;margin-left:8px;vertical-align:middle}
+.card .ichips{display:flex;flex-wrap:wrap;gap:6px}
+
+.chatHead .more{margin-left:auto;font-size:22px;font-weight:800;width:40px;height:40px;display:grid;place-items:center}
+.stageTag{font-size:11px;color:var(--sub);white-space:nowrap}
+#replyBar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--panel);border-top:1px solid var(--line);font-size:13px;color:var(--sub)}
+#replyBar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-left:3px solid var(--pink);padding-left:8px}
+#replyBar button{width:28px;height:28px;border-radius:50%;color:var(--sub)}
+#stPanel{flex:none;display:grid;grid-template-columns:repeat(8,1fr);gap:4px;padding:10px 12px;background:var(--bg);border-top:1px solid var(--line)}
+#stPanel[hidden],#replyBar[hidden],#dlg[hidden]{display:none}
+#stPanel button{font-size:28px;padding:6px 0;border-radius:12px}
+#stPanel button:active{background:var(--panel)}
+#chatForm .stBtn{flex:none;width:40px;height:40px;border-radius:50%;font-size:22px;background:var(--panel);color:var(--sub)}
+.sticker{font-size:60px;line-height:1.1;cursor:pointer;-webkit-user-select:none;user-select:none}
+.rq{font-size:12px;opacity:.75;border-left:3px solid currentColor;padding-left:7px;margin-bottom:6px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#dlg{position:absolute;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);padding:24px}
+.dbox{width:min(320px,100%);background:#fff;color:#16181d;border-radius:22px;padding:22px 18px 14px;display:flex;flex-direction:column;gap:6px;text-align:center}
+.dbox b{font-size:18px}
+.dbox p{margin:0;font-size:14px;color:#6b7280;line-height:1.5}
+.dbox p:empty{display:none}
+#dInput{margin-top:8px;padding:12px 14px;border-radius:12px;border:1px solid #e8eaee;background:#f2f3f6;color:#16181d;font-size:15px;text-align:left}
+#dInput[hidden]{display:none}
+.sup{font-size:11px;font-weight:800;color:#ffd166;margin-bottom:4px}
+#dBtns{display:flex;flex-direction:column;margin-top:10px}
+#dBtns button{padding:14px 0;font-size:16px;font-weight:700;border-top:1px solid #e8eaee}
+#dBtns button.danger{color:#c0261b}
+#dBtns button.cancel{color:#6b7280;font-weight:500}
+#app[data-dark="1"] #view-chat{background:#0f1115;color:#f3f4f6;--bg:#0b0c0f;--panel:#181b21;--line:#262a33;--text:#f3f4f6;--sub:#9aa1ad}
+#app[data-dark="1"] .msg.them .bubble{background:#1f232b;color:#f3f4f6;border-color:#2a2f39}
+#app[data-dark="1"] .panel,#app[data-dark="1"] .qa,#app[data-dark="1"] .statBar,#app[data-dark="1"] .ichip{background:#181b21;color:#f3f4f6}
+#app[data-dark="1"] .subHead{background:#12141a;color:#f3f4f6}
+#app[data-dark="1"] .page.gray{background:#0b0c0f}
+#app[data-dark="1"] .secTitle{color:#f3f4f6!important}
+#app[data-dark="1"] .roundBtn{background:#262a33;color:#f3f4f6}
+#app[data-dark="1"] .meHead .meName,#app[data-dark="1"] .modeRow button.on,#app[data-dark="1"] .segl button.on{color:#f3f4f6;border-color:#f3f4f6}
+#app[data-dark="1"] #sheet{--bg:#0b0c0f;--panel:#181b21;--line:#262a33;--text:#f3f4f6;--sub:#9aa1ad}
+#app[data-dark="1"] .hrt{background:#262a33}
+
+.mAvs{position:relative;align-items:center}
+.mHeart{position:absolute;left:50%;top:50%;font-size:clamp(34px,10vmin,60px);transform:translate(-50%,-50%) scale(0);z-index:3;pointer-events:none}
+#match.open .mAv:first-child{animation:slideL .7s cubic-bezier(.2,.9,.3,1.25) both}
+#match.open .mAv:last-child{animation:slideR .7s cubic-bezier(.2,.9,.3,1.25) both}
+@keyframes slideL{from{transform:translateX(-60vw) rotate(-25deg);opacity:0}60%{opacity:1}}
+@keyframes slideR{from{transform:translateX(60vw) rotate(25deg);opacity:0}60%{opacity:1}}
+#match.open .mHeart{animation:heartPop 1.1s .62s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes heartPop{0%{transform:translate(-50%,-50%) scale(0)}35%{transform:translate(-50%,-50%) scale(1.7)}60%{transform:translate(-50%,-50%) scale(1.15)}100%{transform:translate(-50%,-50%) scale(1.3)}}
+#match.open .mHeart.on{animation:heartPop 1.1s .62s cubic-bezier(.2,1.4,.4,1) both,beat 1s 1.8s ease-in-out infinite}
+.mFlash{position:absolute;left:50%;top:50%;width:20px;height:20px;border-radius:50%;background:#fff;transform:translate(-50%,-50%) scale(0);opacity:0;pointer-events:none}
+#match.open .mFlash{animation:flash .6s .6s ease-out both}
+@keyframes flash{0%{opacity:.95;transform:translate(-50%,-50%) scale(0)}100%{opacity:0;transform:translate(-50%,-50%) scale(70)}}
+.mRing{position:absolute;left:50%;top:50%;width:80px;height:80px;border:4px solid rgba(255,255,255,.85);border-radius:50%;transform:translate(-50%,-50%) scale(0);opacity:0;pointer-events:none}
+#match.open .mRing{animation:shock 1.2s .62s ease-out both}
+#match.open .mRing.r2{animation-delay:.8s}
+#match.open .mRing.r3{animation-delay:1s}
+@keyframes shock{0%{opacity:.9;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(-50%,-50%) scale(9)}}
+#match.open{animation:shake .45s .6s}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-7px,4px)}40%{transform:translate(6px,-5px)}60%{transform:translate(-4px,3px)}80%{transform:translate(3px,-2px)}}
+#match.open h1{animation:titleIn .7s .65s cubic-bezier(.2,1.5,.4,1) both,shine 2.4s 1.4s linear infinite;background:linear-gradient(100deg,#fff 30%,#ffe9a8 45%,#fff 60%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding:0 6px}
+@keyframes titleIn{from{opacity:0;transform:scale(.3) rotate(-8deg)}to{opacity:1;transform:none}}
+@keyframes shine{from{background-position:120% 0}to{background-position:-120% 0}}
+#match.open p{animation:fadeUp .5s .95s both}
+#match.open .mBtns{animation:fadeUp .5s 1.2s both}
+.cf{position:absolute;left:50%;top:50%;width:var(--w);height:var(--h);background:var(--c);border-radius:2px;pointer-events:none;animation:cf var(--t) cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes cf{0%{transform:translate(-50%,-50%) rotate(0);opacity:1}70%{opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--r));opacity:0}}
+
+.card .cfill{position:absolute;left:0;right:0;top:0;height:60%;pointer-events:none;display:grid;place-items:center;padding-top:40px}
+.card .cpat{position:absolute;inset:0;overflow:hidden}
+.card .cpat i{position:absolute;font-style:normal;opacity:.18;animation:floatY 5s ease-in-out infinite}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.card .cbig{position:relative;width:clamp(120px,22vh,190px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:clamp(64px,12vh,104px);background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.42),rgba(255,255,255,.12));border:3px solid rgba(255,255,255,.55);box-shadow:0 0 0 14px rgba(255,255,255,.1),0 0 0 30px rgba(255,255,255,.06),0 12px 40px rgba(0,0,0,.25)}
+.card .avatarBig{display:none}
+
+.ntab.on[data-view=explore] svg path{stroke:var(--bg)}
+svg.av{width:100%;height:100%;display:block;border-radius:inherit}
+.linit{width:54%!important;aspect-ratio:1;opacity:1!important;top:36%!important;font-size:0!important}
+.linit svg.av{border-radius:50%}
+.act{flex:none;height:62px}
+.act.sm{width:50px;height:50px;align-self:center}
+
+#sQa{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.qaCard{background:var(--panel);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.qaCard span{font-size:12px;font-weight:700;color:var(--sub);letter-spacing:.3px}
+.qaCard b{font-size:16px;line-height:1.45;font-weight:600}
+@media (orientation:landscape) and (max-height:559px){
+  #app{flex-direction:row}
+  #nav{order:-1;flex-direction:column;justify-content:center;gap:8px;width:64px;padding:8px 6px;border-top:0;border-right:1px solid var(--line)}
+  .ntab .badge{right:14px}
+  #actions{left:auto;right:12px;top:50%;bottom:auto;transform:translateY(-50%);flex-direction:column;gap:10px}
+  .rbtn{width:46px;height:46px}
+  .rbtn.lg{width:56px;height:56px}
+  .stamp.like,.stamp.nope{top:60px}
+  .card .cbody{padding:52px 96px 12px 20px;gap:8px}
+  #sheet{inset:0 0 0 auto;width:min(520px,62%);transform:translateX(100%);box-shadow:-20px 0 40px rgba(0,0,0,.5)}
+  #sheet.open{transform:none}
+  .sheetPhoto{height:150px}
+  .sheetText{padding:34px 20px 16px}
+  #stPanel{grid-template-columns:repeat(16,1fr);padding:6px 10px}
+  #stPanel button{font-size:24px;padding:2px 0}
+  .sheetActions{padding:6px 0 8px}
+  .chatHead{padding-top:6px;padding-bottom:6px}
+  .page{padding:12px 16px}
+}
+.card .scrim{position:absolute;left:0;right:0;bottom:0;height:68%;background:linear-gradient(to top,rgba(8,6,20,.82),rgba(8,6,20,.42) 55%,transparent);pointer-events:none}
+.card .bars{position:absolute;top:56px;left:12px;right:12px;display:flex;gap:4px;z-index:5;pointer-events:none}
+.card .bars i{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.35);transition:background .2s}
+.card .bars i.on{background:#fff}
+.card .cfill{transition:opacity .25s}
+.card:not([data-pg="0"]) .cfill{opacity:.3}
+.card .pg{display:none;flex-direction:column;gap:12px}
+.card[data-pg="0"] .pg0,.card[data-pg="1"] .pg1,.card[data-pg="2"] .pg2{display:flex}
+.qaMini{padding:12px 14px;border-radius:14px;background:rgba(20,18,36,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16)}
+.qaMini span{display:block;font-size:12px;opacity:.75;margin-bottom:4px;font-weight:600}
+.qaMini b{font-size:16px;font-weight:600;line-height:1.45}
+.cfx{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600}
+.cfx i{font-style:normal;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.16);font-size:15px}
+.sheetPhoto{overflow:visible;isolation:isolate}
+.sheetPhoto::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 18% 22%,rgba(255,255,255,.3),transparent 46%),radial-gradient(circle at 88% 85%,rgba(0,0,0,.3),transparent 55%),radial-gradient(rgba(255,255,255,.16) 1.2px,transparent 1.6px) 0 0/18px 18px}
+.sheetPhoto::after{content:'';position:absolute;left:0;right:0;bottom:0;height:46%;z-index:-1;background:linear-gradient(to top,rgba(8,6,20,.45),transparent)}
+.bubble.hit{outline:2px solid #ffd54a;outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="app" data-view="splash" data-auth="1" data-theme="dark">
+  <main id="views">
+    <section id="view-splash" class="view auth active">
+      <div class="floaters"><i style="--l:6%;--s:22px;--d:0.0s;--t:7.0s">💗</i><i style="--l:18%;--s:30px;--d:1.5s;--t:9.0s">✨</i><i style="--l:30%;--s:20px;--d:3.0s;--t:8.0s">💕</i><i style="--l:42%;--s:26px;--d:0.8s;--t:10.0s">💖</i><i style="--l:54%;--s:24px;--d:2.2s;--t:7.5s">💗</i><i style="--l:66%;--s:32px;--d:4.0s;--t:9.5s">✨</i><i style="--l:78%;--s:22px;--d:1.1s;--t:8.5s">💕</i><i style="--l:90%;--s:28px;--d:3.4s;--t:7.0s">💖</i><i style="--l:24%;--s:18px;--d:5.0s;--t:10.0s">💗</i><i style="--l:72%;--s:18px;--d:5.5s;--t:8.0s">💕</i></div>
+      <div class="logo">spark</div>
+      <div class="tagline">글로 먼저 알아가는 새로운 인연</div>
+      <div class="col" id="splashBtns" hidden>
+        <button class="btnMain" id="goLogin">로그인</button>
+        <button class="btnGhost" id="goSignup">새로 시작하기</button>
+        <button class="btnDebug" id="dbgLogin" type="button">🐞 디버그 로그인</button>
+      </div>
+    </section>
+
+    <section id="view-login" class="view auth">
+      <form class="authBox" id="loginForm" novalidate>
+        <h2>다시 만나서 반가워요</h2>
+        <div class="field"><label for="lgEmail">이메일</label><input id="lgEmail" type="email" autocomplete="email" inputmode="email"></div>
+        <div class="field"><label for="lgPw">비밀번호</label><input id="lgPw" type="password" autocomplete="current-password"></div>
+        <div class="err" id="lgErr"></div>
+        <button class="btnMain" type="submit" id="lgBtn">로그인</button>
+        <button class="linkBtn" type="button" data-go="signup">계정이 없나요? <b>가입하기</b></button>
+        <button class="linkBtn" type="button" data-go="splash">처음으로</button>
+      </form>
+    </section>
+
+    <section id="view-signup" class="view auth">
+      <form class="authBox" id="signupForm" novalidate>
+        <h2>계정 만들기</h2>
+        <p class="hint">1/2 · 로그인 정보</p>
+        <div class="field"><label for="suEmail">이메일</label><input id="suEmail" type="email" autocomplete="email" inputmode="email"></div>
+        <div class="field"><label for="suPw">비밀번호 (6자 이상)</label><input id="suPw" type="password" autocomplete="new-password"></div>
+        <div class="field"><label for="suPw2">비밀번호 확인</label><input id="suPw2" type="password" autocomplete="new-password"></div>
+        <div class="err" id="suErr"></div>
+        <button class="btnMain" type="submit" id="suBtn">다음</button>
+        <button class="linkBtn" type="button" data-go="login">이미 계정이 있나요? <b>로그인</b></button>
+        <button class="linkBtn" type="button" data-go="splash">처음으로</button>
+      </form>
+    </section>
+
+    <section id="view-setup" class="view auth">
+      <form class="authBox" id="setupForm" novalidate>
+        <h2 id="setupTitle">프로필 만들기</h2>
+        <p class="hint" id="setupHint">2/2 · 사진 없이 글로만 소개해요</p>
+        <button class="linkBtn" type="button" id="pfRandom">🎲 랜덤으로 채우기</button>
+        <div class="field"><label for="pfName">닉네임 (2~12자)</label><input id="pfName" type="text" maxlength="12" autocomplete="nickname"></div>
+        <div class="field"><label for="pfYear">출생연도</label><input id="pfYear" type="number" inputmode="numeric" placeholder="예: 1998"></div>
+        <div class="field"><label>나는</label><div class="seg" id="segGender"><button type="button" data-v="m">남성</button><button type="button" data-v="f">여성</button><button type="button" data-v="o">기타</button></div></div>
+        <div class="seg" id="segLook" hidden></div>
+        <div class="field"><label for="pfRegion">지역</label><input id="pfRegion" type="text" maxlength="20" placeholder="예: 서울 마포구"></div>
+        <div class="field"><label for="pfJob">직업 (선택)</label><input id="pfJob" type="text" maxlength="20"></div>
+        <div class="field"><label for="pfBio">자기소개 (10~150자)</label><textarea id="pfBio" maxlength="150"></textarea><span class="cnt" id="pfCnt">0/150</span></div>
+        <div class="field"><label for="pfTags">관심사 (쉼표로 구분, 최대 5개)</label><input id="pfTags" type="text" maxlength="60" placeholder="러닝, 커피, 영화"></div>
+        <div class="err" id="pfErr"></div>
+        <button class="btnMain" type="submit" id="pfBtn">시작하기</button>
+        <button class="linkBtn" type="button" id="pfCancel" hidden>취소</button>
+      </form>
+    </section>
+
+    <section id="view-partner" class="view auth">
+      <form class="authBox" id="partnerForm" novalidate>
+        <h2 id="pnTitle">AI 연인 만들기</h2>
+        <p class="hint" id="pnHint"></p>
+        <div class="field" id="pnGenderBox"><label>상대</label><div class="seg" id="segPg"><button type="button" data-v="f">여자친구</button><button type="button" data-v="m">남자친구</button></div></div>
+        <div class="field"><label for="pnName">AI 이름 (2~8자)</label><input id="pnName" type="text" maxlength="8"></div>
+        <div class="field"><label for="pnCall">나를 부르는 이름 (1~10자)</label><input id="pnCall" type="text" maxlength="10"></div>
+        <div class="field"><label>성격</label><div class="seg" id="segPers"><button type="button" data-v="warm">다정함</button><button type="button" data-v="playful">장난꾸러기</button></div><div class="seg" id="segPers2" style="margin-top:8px"><button type="button" data-v="calm">차분함</button><button type="button" data-v="lively">활발함</button></div></div>
+        <div class="err" id="pnErr"></div>
+        <button class="btnMain" type="submit" id="pnBtn">만들고 대화 시작</button>
+        <button class="linkBtn" type="button" id="pnSkip">나중에 할게요</button>
+      </form>
+    </section>
+
+    <section id="view-deck" class="view">
+      <div id="stage">
+        <div id="frame">
+          <div id="stack"></div>
+          <div id="empty" hidden>
+            <div class="big">💫</div>
+            <div>지금은 보여줄 사람이 없어요</div>
+            <button class="pill" id="restart">처음부터 다시</button>
+          </div>
+          <div id="deckTop">
+            <button class="fpill on" data-f="all">FOR YOU</button>
+            <button class="fpill" data-f="tag">같은 관심사</button>
+            <button class="fpill" data-f="region">같은 지역</button>
+            <button class="fpill on" data-f="cat" id="catPill" hidden></button>
+          </div>
+          <div id="actions">
+            <button class="rbtn rewind" data-act="rewind" aria-label="되돌리기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v5h5"/></svg></button>
+            <button class="rbtn lg nope" data-act="nope" aria-label="패스"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            <button class="rbtn super" data-act="super" aria-label="슈퍼라이크"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+            <button class="rbtn lg like" data-act="like" aria-label="좋아요"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-explore" class="view">
+      <div class="page">
+        <div class="hHead"><div class="hTitle">둘러보기</div></div>
+        <button class="hero" id="exHero"><b>나와 같은 관심사</b><span>취향이 비슷한 사람들을 먼저 만나보세요</span></button>
+        <div class="secTitle">관심사로 찾기</div>
+        <div class="catGrid" id="catGrid"></div>
+      </div>
+    </section>
+
+    <section id="view-likes" class="view">
+      <div class="page">
+        <div class="hHead"><div class="hTitle">LIKE</div><span class="cntBadge" id="likeCount">0</span></div>
+        <div class="chipRow" id="sortRow">
+          <button class="sortChip on" data-s="rec">추천순</button>
+          <button class="sortChip" data-s="area">지역순</button>
+          <button class="sortChip" data-s="age">나이순</button>
+        </div>
+        <div class="chipRow" id="filterRow">
+          <button class="sortChip on" data-f="all">전체</button>
+          <button class="sortChip" data-f="on">접속 중</button>
+          <button class="sortChip" data-f="common">공통 관심사</button>
+        </div>
+        <div id="fitSec">
+          <div class="secTitle">우리 잘 어울려요</div>
+          <div class="hscroll" id="fitList"></div>
+        </div>
+        <div class="secTitle" id="likeTitle">나를 좋아한 사람</div>
+        <div class="grid2" id="likeGrid"></div>
+        <div class="emptyNote" id="likeEmpty">아직 나를 좋아한 사람이 없어요.</div>
+      </div>
+    </section>
+
+    <section id="view-matches" class="view">
+      <div class="page">
+        <div class="hHead"><div class="hTitle">채팅</div></div>
+        <input class="search" id="searchInput" type="text" placeholder="매치 검색" autocomplete="off">
+        <div id="newSec">
+          <div class="secTitle">새 매치</div>
+          <div class="strip" id="newStrip"></div>
+        </div>
+        <div class="secTitle">메시지</div>
+        <div id="matchList"></div>
+        <div class="emptyNote" id="matchEmpty"></div>
+      </div>
+    </section>
+
+    <section id="view-me" class="view">
+      <div class="page gray">
+        <div class="meHead">
+          <div class="meAv" id="meAv"></div>
+          <div class="meInfo"><div class="meName" id="meName">내 프로필</div><button class="linkLike" id="mePreview">미리보기 ›</button></div>
+          <button class="roundBtn" id="goSettings" aria-label="설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        </div>
+        <div class="infoChips" id="meChips"></div>
+        <div class="secTitle" style="color:#16181d">내 프로필 문답</div>
+        <div class="qaGrid">
+          <div class="qa"><span>자기소개</span><b id="qaBio"></b></div>
+          <div class="qa"><span>관심사</span><b id="qaTags"></b></div>
+        </div>
+        <div class="statBar">
+          <span>좋아요 <b id="stLikes">0</b>개</span>
+          <span>슈퍼 <b id="stSupers">0</b>개</span>
+          <span>패스 <b id="stPasses">0</b>개</span>
+          <span>매치 <b id="stMatches">0</b>개</span>
+        </div>
+        <button class="pill" id="editProfile" style="width:100%">프로필 수정</button>
+      </div>
+    </section>
+
+    <section id="view-settings" class="view">
+      <div class="subHead"><button class="back" id="setBack" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><b>설정</b></div>
+      <div class="page gray">
+        <div class="secTitle" style="color:#16181d">계정 설정</div>
+        <div class="panel rowBetween"><span>이메일</span><em id="setEmail"></em></div>
+        <div class="secTitle" style="color:#16181d">소셜 디스커버리 범위 설정</div>
+        <button class="panel rowBetween" id="goDiscover"><span>디스커버리 설정</span><em id="dcSummary"></em></button>
+        <div class="secTitle" style="color:#16181d">알림 · 화면</div>
+        <div class="panel"><div class="toggleRow"><span>알림음 · 진동</span><button class="switch" id="swSound" role="switch" type="button"><i></i></button></div></div>
+        <div class="panel"><div class="toggleRow"><span>다크 모드</span><button class="switch" id="swDark" role="switch" type="button"><i></i></button></div></div>
+        <div class="secTitle" style="color:#16181d">데이터 저장</div>
+        <div class="panel rowBetween"><span>자동 저장</span><em id="autoState"></em></div>
+        <button class="panel rowBetween" id="saveData"><span>파일로 저장하기</span><em>내보내기</em></button>
+        <button class="panel rowBetween" id="loadData"><span>파일에서 불러오기</span><em>가져오기</em></button>
+        <input type="file" id="loadFile" accept=".json,application/json" hidden>
+        <div class="secTitle" style="color:#16181d">기타</div>
+        <button class="panel rowBetween" id="blockList"><span>차단 목록</span><em>관리</em></button>
+        <button class="panel" id="remakePartner">AI 연인 다시 만들기</button>
+        <button class="panel" id="clearMem">AI 기억 초기화</button>
+        <button class="panel" id="restart2">카드 처음부터</button>
+        <button class="panel dangerRow" id="logout">데이터 초기화</button>
+      </div>
+    </section>
+
+    <section id="view-discover" class="view">
+      <div class="subHead"><button class="back" id="dcBack" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><b>소셜 디스커버리 설정</b></div>
+      <div class="page gray">
+        <div class="panel"><div class="pTitle">모드</div><div class="modeRow" id="dcMode"><button data-m="all">FOR YOU</button><button data-m="tag">같은 관심사</button><button data-m="region">같은 지역</button></div></div>
+        <div class="panel"><div class="pTitle">위치</div><div class="locRow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span id="dcLoc"></span></div></div>
+        <div class="panel">
+          <div class="rowBetween"><b>상대와의 최대 거리</b><em id="dcDistVal"></em></div>
+          <input class="rng" id="dcDist" type="range" min="2" max="100" step="1">
+          <div class="toggleRow"><span>스와이프할 프로필이 더 이상 없을 때 상대와의 거리 범위를 자동으로 조정합니다</span><button class="switch" id="swDist" role="switch"><i></i></button></div>
+        </div>
+        <div class="segl" id="dcLook" hidden></div>
+        <div class="panel">
+          <div class="rowBetween"><b>상대의 연령대</b><em id="dcAgeVal"></em></div>
+          <input class="rng" id="dcMin" type="range" min="18" max="80" step="1" style="margin-bottom:0">
+          <input class="rng" id="dcMax" type="range" min="18" max="80" step="1">
+          <div class="toggleRow"><span>스와이프할 프로필이 더 이상 없을 때 상대의 나이 범위를 자동으로 조정합니다</span><button class="switch" id="swAge" role="switch"><i></i></button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-chat" class="view">
+      <div class="chatHead">
+        <button class="back" id="chatBack" aria-label="뒤로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <span class="avatar" id="chatAvatar"></span>
+        <b id="chatName"></b><span class="aiTag" id="aiTag">AI</span><span class="stageTag" id="stageTag"></span>
+        <button class="back more" id="chatMore" type="button" aria-label="메뉴">⋯</button>
+      </div>
+      <div id="chatLog"></div>
+      <div id="replyBar" hidden><span id="replyTxt"></span><button type="button" id="replyX" aria-label="답장 취소">✕</button></div>
+      <div id="stPanel" hidden></div>
+      <form id="chatForm" autocomplete="off">
+        <button class="stBtn" type="button" id="stBtn" aria-label="스티커">☺</button>
+        <input id="chatInput" type="text" placeholder="메시지 보내기" maxlength="200">
+        <button class="send" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39 1.17L3.5 10.5l9 1.5-9 1.5-1.49 5.73a.99.99 0 0 0 1.39 1.17z"/></svg></button>
+      </form>
+    </section>
+  </main>
+
+  <nav id="nav">
+    <button class="ntab on" data-view="deck" aria-label="스와이프"><svg viewBox="0 0 24 24"><path d="M12 2c.6 3.2 4.5 5.1 4.5 9.2A4.5 4.5 0 0 1 12 15.7a4.5 4.5 0 0 1-4.5-4.5c0-1.5.6-2.6 1.4-3.5.2 1.2.9 1.9 1.7 2C10.2 6.6 10.8 4 12 2zM6.2 14.8a7 7 0 0 0 11.6 0A7.9 7.9 0 0 1 12 22a7.9 7.9 0 0 1-5.8-7.2z"/></svg><span>스와이프</span></button>
+    <button class="ntab" data-view="explore" aria-label="둘러보기"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg><span>둘러보기</span></button>
+    <button class="ntab" data-view="likes" aria-label="LIKE"><svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span>LIKE</span><i class="cntb" id="likeBadge" hidden></i></button>
+    <button class="ntab" data-view="matches" aria-label="채팅"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg><span>채팅</span><i class="badge" id="badge" hidden></i></button>
+    <button class="ntab" data-view="me" aria-label="프로필"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.5"/><path d="M3.5 21c0-4.4 3.8-7 8.5-7s8.5 2.6 8.5 7z"/></svg><span>프로필</span></button>
+  </nav>
+
+  <aside id="sheet" aria-hidden="true">
+    <div class="sheetBody">
+      <div class="sheetPhoto" id="sPhoto">
+        <span class="initial" id="sInitial"></span>
+        <button class="sheetClose" id="sClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <div class="sheetText">
+        <h2 id="sName"></h2>
+        <p class="sub" id="sJob"></p>
+        <p class="sub" id="sDist"></p>
+        <p class="bio" id="sBio"></p>
+        <div class="tags" id="sTags"></div>
+        <div id="sQa"></div>
+      </div>
+    </div>
+    <div class="sheetActions" id="sActions">
+      <button class="act nope" data-act="nope" aria-label="패스"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <button class="act sm super" data-act="super" aria-label="슈퍼라이크"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></button>
+      <button class="act like" data-act="like" aria-label="좋아요"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+    </div>
+  </aside>
+
+  <div id="toast" role="alert"></div>
+  <div id="dlg" hidden><div class="dbox"><b id="dTitle"></b><p id="dMsg"></p><input id="dInput" type="text" maxlength="80" hidden><div id="dBtns"></div></div></div>
+  <div id="fx" aria-hidden="true"></div>
+  <div id="finding" class="on" aria-hidden="false">
+    <div class="radar"><i></i><i></i><i></i><div class="sweep"></div><i class="blip" style="--a:20deg;--r:clamp(80px,24vmin,120px);--d:0.0s">🏃</i><i class="blip" style="--a:80deg;--r:clamp(80px,24vmin,120px);--d:0.4s">☕</i><i class="blip" style="--a:140deg;--r:clamp(80px,24vmin,120px);--d:0.9s">🎸</i><i class="blip" style="--a:200deg;--r:clamp(80px,24vmin,120px);--d:1.3s">📷</i><i class="blip" style="--a:260deg;--r:clamp(80px,24vmin,120px);--d:0.6s">🐱</i><i class="blip" style="--a:320deg;--r:clamp(80px,24vmin,120px);--d:1.6s">🎬</i><div class="core">♥</div></div>
+    <div class="ftext" id="ftext"></div>
+    <div class="fdots"><i></i><i></i><i></i></div>
+  </div>
+
+  <div id="match">
+    <div class="mFlash"></div><div class="mRing"></div><div class="mRing r2"></div><div class="mRing r3"></div>
+    <h1>서로 좋아해요!</h1>
+    <div class="mAvs"><div class="mAv" id="mA"></div><div class="mHeart">💗</div><div class="mAv" id="mB"></div></div>
+    <p id="mText"></p>
+    <div class="mBtns">
+      <button class="solid" id="mChat">메시지 보내기</button>
+      <button class="ghost" id="mKeep">계속 넘기기</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+const STORE_KEY='spark_mock_v3';
+const DEBUG=true;
+const DEBUG_EMAIL='debug@spark.test';
+const DEBUG_PW='debug1234';
+const RP_NAME={m:['민준','서준','도하','지호','우진','현우','시우','은찬','태현','건우','재윤','선우'],f:['서윤','하영','지아','채원','수아','다인','나은','유나','예린','소이','연우','가을']};
+const RP_REGION=['서울 강남구','서울 마포구','서울 성동구','서울 송파구','서울 관악구','서울 용산구','경기 성남시','경기 수원시','인천 연수구','부산 해운대구','대구 수성구','대전 유성구'];
+const RP_JOB=['개발자','디자이너','마케터','간호사','교사','대학원생','프리랜서','바리스타','회사원','기획자','사진작가','요리사','물리치료사','번역가'];
+const RP_TAIL=['프로필에서 자유롭게 수정할 수 있어요.','말 편하게 걸어주세요.','천천히 알아가는 걸 좋아해요.','일단 인사부터 해요 ㅎㅎ','같이 얘기하다 보면 잘 맞을 것 같아요.','웃음 코드 맞는 사람이면 좋겠어요.'];
+const RP_OPEN=['쉬는 날엔 {a}하고 {b}도 자주 해요.','요즘 {a}에 푹 빠져 있어요. {b}도 좋아해요.','{a} 좋아하고 {b}도 즐겨요.','평일엔 일하고 주말엔 {a}, 가끔 {b}도 해요.'];
+function rpPick(a){return a[Math.floor(Math.random()*a.length)];}
+function randomProfile(g){
+  const gender=g||(Math.random()<0.5?'m':'f');
+  const pool=Object.keys(EMOJI).slice();
+  const tags=[];
+  for(let i=0;i<3&&pool.length;i++)tags.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+  const yr=new Date().getFullYear();
+  const birthYear=yr-(22+Math.floor(Math.random()*14));
+  const bio=rpPick(RP_OPEN).replace('{a}',tags[0]).replace('{b}',tags[1])+' '+rpPick(RP_TAIL);
+  return {name:rpPick(RP_NAME[gender]),birthYear:birthYear,age:yr-birthYear,gender:gender,look:gender==='m'?'f':'m',region:rpPick(RP_REGION),job:rpPick(RP_JOB),bio:bio,tags:tags};
+}
+const DEBUG_PROFILE={name:'스파크',birthYear:1996,gender:'m',look:'f',region:'서울 강남구',job:'개발자',bio:'평소엔 코드를 짜고 쉬는 날엔 러닝을 해요. 프로필에서 자유롭게 수정할 수 있어요.',tags:['코딩','러닝','커피']};
+const NAME_RE=/^[가-힣a-zA-Z0-9_]+$/;
+const ICON_UP='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>';
+const SVG_X='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const SVG_HEART='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+const ESC_MAP={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const AUTH_VIEWS={splash:1,login:1,signup:1,setup:1,partner:1};
+const LIGHT_VIEWS={explore:1,likes:1,matches:1,me:1,chat:1,settings:1,discover:1};
+const NAV_VIEWS={deck:1,explore:1,likes:1,matches:1,me:1};
+const EMOJI={'러닝':'🏃','커피':'☕','전시':'🖼️','보드게임':'🎲','요리':'🍳','영화':'🎬','고양이':'🐱','독서':'📚','산책':'🚶','맛집':'🍜','캠핑':'⛺','와인':'🍷','꽃':'💐','사진':'📷','베이킹':'🧁','헬스':'🏋️','등산':'🥾','식단':'🥗','그림':'🎨','게임':'🎮','여행':'✈️','서핑':'🏄','기타':'🎸','음악':'🎵','밴드':'🥁','건축':'🏛️','자전거':'🚲','넷플릭스':'📺','필름':'🎞️','드라이브':'🚗','코딩':'💻'};
+const GENDER={m:'남성',f:'여성',o:'기타'};
+const LOOK={m:'남성',f:'여성',a:'모두'};
+const EMPTY_TALK='아직 대화가 없어요.<br>새 매치에게 먼저 말을 걸어 보세요.';
+const EMPTY_FOUND='검색 결과가 없어요.';
+
+const SEED=[
+{id:'u1',km:3,name:'지우',age:26,gender:'f',job:'UX 디자이너',region:'서울 마포구',likesMe:true,online:true,bio:'주말엔 한강 뛰고 평일엔 카페 돌아다녀요. 요즘 원두 취향이 생겨서 좀 까다로워졌어요 ㅎㅎ',tags:['러닝','커피','전시']},
+{id:'u2',km:5,name:'민준',age:29,gender:'m',job:'백엔드 개발자',region:'서울 강남구',likesMe:false,bio:'퇴근하면 보통 라면 끓여 먹으면서 보드게임 영상 봐요. 요리는 라면까지만 잘해요',tags:['보드게임','요리','영화']},
+{id:'u3',km:8,name:'서연',age:25,gender:'f',job:'대학원생',region:'서울 성북구',likesMe:true,online:true,bio:'집에 고양이 두 마리 있어요. 얘네 때문에 약속 일찍 끝내는 편... 책 추천해주면 진짜 읽어요',tags:['고양이','독서','산책']},
+{id:'u4',km:22,name:'도현',age:31,gender:'m',job:'셰프',region:'경기 성남시',likesMe:true,bio:'일할 땐 불 앞에 있어서 쉬는 날엔 시원한 데서 와인 마셔요. 매운 거 잘 먹어요',tags:['맛집','캠핑','와인']},
+{id:'u5',km:4,name:'하은',age:27,gender:'f',job:'플로리스트',region:'서울 성동구',likesMe:false,bio:'꽃집 해요. 손이 거칠어서 손 예쁘다는 말은 못 들어요 ㅠㅠ 조용한 데이트가 좋아요',tags:['꽃','사진','베이킹']},
+{id:'u6',km:12,name:'태양',age:28,gender:'m',job:'헬스 트레이너',region:'서울 송파구',likesMe:true,online:true,bio:'새벽 운동 가는 사람. 대신 저녁 약속은 일찍 끝내야 해요 ㅋㅋ 같이 등산 가실 분',tags:['헬스','등산','식단']},
+{id:'u7',km:6,name:'소민',age:24,gender:'f',job:'일러스트레이터',region:'서울 용산구',likesMe:true,bio:'그림 그리다 보면 새벽 4시. 전시는 혼자 가도 좋은데 같이 가면 더 좋을 듯해요',tags:['그림','전시','게임']},
+{id:'u8',km:45,name:'건우',age:30,gender:'m',job:'파일럿',region:'인천 연수구',likesMe:false,bio:'비행 없는 날엔 바다 가요. 서핑 처음이면 제가 알려드릴 수 있어요',tags:['여행','서핑','사진']},
+{id:'u9',km:9,name:'유나',age:26,gender:'f',job:'뮤지션',region:'서울 서대문구',likesMe:true,online:true,bio:'주말에 홍대에서 버스킹 해요. 노래는 잘 못하는데 기타는 좀 칩니다',tags:['기타','음악','밴드']},
+{id:'u10',km:30,name:'준서',age:32,gender:'m',job:'건축가',region:'경기 수원시',likesMe:true,bio:'건물 보는 게 취미라 산책이 자꾸 길어져요. 걷는 거 싫어하시면 우린 안 맞을지도..',tags:['건축','커피','자전거']},
+{id:'u11',km:15,name:'채원',age:27,gender:'f',job:'간호사',region:'서울 강서구',likesMe:false,bio:'3교대라 연락이 늦을 수 있어요. 쉬는 날엔 진짜 에너지 넘쳐요, 약속 잡기 좋아해요',tags:['여행','맛집','넷플릭스']},
+{id:'u12',km:7,name:'시우',age:29,gender:'m',job:'사진작가',region:'서울 종로구',likesMe:true,bio:'필름 카메라로 찍고 있어요. 인화하는 데 시간이 걸려서 기다리는 것도 재미예요',tags:['사진','필름','드라이브']},
+{id:'u13',km:11,name:'이서',age:27,gender:'f',job:'웹툰 작가',region:'서울 관악구',likesMe:true,online:true,bio:'마감 끝나고 한강에서 멍때리는 게 제일 행복해요. 집사 1명, 고양이 1마리',tags:['그림','고양이','게임']},
+{id:'u14',km:14,name:'지호',age:28,gender:'m',job:'데이터 분석가',region:'서울 구로구',likesMe:false,bio:'숫자 보는 게 일인데 쉬는 날엔 보드게임으로 머리 식혀요. 카페 가는 것도 좋아요',tags:['코딩','보드게임','커피']},
+{id:'u15',km:40,name:'수빈',age:25,gender:'f',job:'승무원',region:'인천 중구',likesMe:true,bio:'비행 없는 날엔 카메라 들고 돌아다녀요. 맛집 추천해주면 기억해뒀다 가요',tags:['여행','사진','맛집']},
+{id:'u16',km:6,name:'현우',age:33,gender:'m',job:'의사',region:'서울 서초구',likesMe:false,bio:'말수는 적은 편인데 듣는 건 잘해요. 조용한 와인바에서 책 얘기하는 거 좋아합니다',tags:['와인','독서','영화']},
+{id:'u17',km:10,name:'나은',age:26,gender:'f',job:'수의사',region:'서울 동작구',likesMe:true,online:true,bio:'동물이랑 있을 때가 제일 편해요. 주말엔 쿠키 굽는데 가끔 태워요 ㅎㅎ',tags:['고양이','산책','베이킹']},
+{id:'u18',km:11,name:'재윤',age:27,gender:'m',job:'대학원생',region:'서울 관악구',likesMe:true,bio:'연구하다 막히면 게임하고 노래 들어요. 인생 노래 하나씩 공유해요',tags:['코딩','게임','음악']},
+{id:'u19',km:5,name:'예린',age:29,gender:'f',job:'마케터',region:'서울 성동구',likesMe:false,bio:'전시 보고 와인 한잔 하는 주말이 제일 좋아요. 평일엔 거의 회사에 있어요',tags:['전시','와인','맛집']},
+{id:'u20',km:28,name:'동하',age:30,gender:'m',job:'소방관',region:'경기 고양시',likesMe:true,bio:'체력은 자신 있는데 길치예요 ㅋㅋ 캠핑 장비는 많아서 같이 가면 편해요',tags:['헬스','캠핑','등산']},
+{id:'u21',km:9,name:'아라',age:24,gender:'f',job:'대학생',region:'서울 동대문구',likesMe:true,online:true,bio:'밴드 동아리에서 보컬해요. 영화 보고 나서 한참 얘기하는 거 좋아해요',tags:['음악','밴드','영화']},
+{id:'u22',km:3,name:'승민',age:26,gender:'m',job:'게임 개발자',region:'서울 마포구',likesMe:false,bio:'게임 만들고 퇴근하면 또 게임해요... 넷플릭스는 그나마 건전한 취미예요',tags:['게임','코딩','넷플릭스']},
+{id:'u23',km:24,name:'보람',age:31,gender:'f',job:'약사',region:'경기 성남시',likesMe:true,bio:'요리하는 거 좋아해요. 여행 가면 시장부터 가는 편이에요. 같이 장 보러 갈 사람?',tags:['요리','여행','독서']},
+{id:'u24',km:6,name:'정우',age:28,gender:'m',job:'바리스타',region:'서울 용산구',likesMe:true,online:true,bio:'바리스타라 커피는 잘 내려요. 자전거로 출근하는데 비 오면 슬퍼요',tags:['커피','음악','자전거']},
+{id:'u25',km:2,name:'다온',age:25,gender:'f',job:'디자이너',region:'서울 강남구',likesMe:false,bio:'그림 그리고 전시 다녀요. 취향 맞는 사람 만나면 말이 엄청 많아져요',tags:['그림','전시','사진']},
+{id:'u26',km:8,name:'은찬',age:29,gender:'m',job:'영상 감독',region:'서울 종로구',likesMe:true,online:true,bio:'영상 찍는 일 해요. 언젠가 영화 한 편 만드는 게 꿈인데 아직은 단편만...',tags:['영화','필름','사진']},
+{id:'u27',km:12,name:'시은',age:28,gender:'f',job:'필라테스 강사',region:'서울 송파구',likesMe:true,bio:'운동 가르치는 일이라 몸 쓰는 게 좋아요. 대신 먹는 건 적당히 즐겨요 ㅎㅎ',tags:['헬스','식단','산책']},
+{id:'u28',km:4,name:'태민',age:31,gender:'m',job:'창업가',region:'서울 강남구',likesMe:false,bio:'바쁘게 살다가 주말엔 요리하면서 와인 마셔요. 의외로 집순이/집돌이예요',tags:['여행','와인','요리']},
+{id:'u29',km:9,name:'하윤',age:26,gender:'f',job:'사서',region:'서울 서대문구',likesMe:true,online:true,bio:'책 냄새 좋아해서 서점에서 반나절 보내요. 산책하면서 얘기하는 거 좋아해요',tags:['독서','산책','커피']},
+{id:'u30',km:3,name:'도겸',age:27,gender:'m',job:'래퍼',region:'서울 마포구',likesMe:true,bio:'가사 쓰다가 밤새는 날이 많아요. 드라이브하면서 노래 듣는 걸 제일 좋아해요',tags:['음악','밴드','드라이브']}
+];
+
+let db=loadDb();
+if(!db.liked)db.liked={};
+
+function loadDb(){
+  try{
+    const raw=localStorage.getItem(STORE_KEY);
+    if(raw)return JSON.parse(raw);
+  }catch(e){}
+  return {users:{},session:null,swipes:{},matches:{},liked:{}};
+}
+
+function saveDb(){
+  try{localStorage.setItem(STORE_KEY,JSON.stringify(db));}catch(e){}
+}
+
+function findSeed(id){
+  for(let i=0;i<SEED.length;i++)if(SEED[i].id===id)return SEED[i];
+  return null;
+}
+
+function findProfile(id){
+  const sd=findSeed(id);
+  if(sd)return sd;
+  const u=db.users[db.session];
+  return u&&u.partner&&u.partner.id===id?u.partner:null;
+}
+
+function lookOk(me,p){return p.gender!==me.gender;}
+const PREF_DEFAULT={dist:100,ageMin:18,ageMax:60,autoDist:true,autoAge:true};
+function prefsOf(){return {...PREF_DEFAULT,...(db.users[db.session].prefs||{})};}
+
+const api={
+  async getSession(){
+    const key=db.session;
+    const u=key?db.users[key]:null;
+    if(!u)return null;
+    return {id:u.id,email:u.email,profile:u.profile};
+  },
+  async signUp(email,password){
+    const key=email.toLowerCase();
+    if(db.users[key])throw new Error('이미 가입된 이메일이에요');
+    db.users[key]={id:'me_'+Date.now().toString(36),email:key,password:password,profile:null};
+    db.swipes[key]={};
+    db.matches[key]=[];
+    db.liked[key]=[];
+    db.session=key;
+    saveDb();
+    return api.getSession();
+  },
+  async signIn(email,password){
+    const key=email.toLowerCase();
+    const u=db.users[key];
+    if(!u||u.password!==password)throw new Error('이메일 또는 비밀번호가 올바르지 않아요');
+    db.session=key;
+    saveDb();
+    return api.getSession();
+  },
+  async isFirstRun(){return !db.users[DEBUG_EMAIL];},
+  async debugLogin(g){
+    const key=DEBUG_EMAIL;
+    if(!db.users[key]){
+      db.users[key]={id:'me_local',email:key,password:DEBUG_PW,profile:randomProfile(g)};
+      db.swipes[key]={};
+      db.matches[key]=[];
+      db.liked[key]=[];
+    }
+    if(!db.users[key].profile)db.users[key].profile=randomProfile(g);
+    db.session=key;
+    if(!db.users[key].partner)await api.createPartner({gender:db.users[key].profile.gender==='f'?'m':'f',name:db.users[key].profile.gender==='f'?'도윤':'하린',call:db.users[key].profile.name,style:'warm'});
+    saveDb();
+    return api.getSession();
+  },
+  async resetAll(){
+    delete db.users[DEBUG_EMAIL];
+    delete db.swipes[DEBUG_EMAIL];
+    delete db.matches[DEBUG_EMAIL];
+    delete db.liked[DEBUG_EMAIL];
+    if(db.seen)delete db.seen[DEBUG_EMAIL];
+    db.session=null;
+    saveDb();
+  },
+  async signOut(){
+    db.session=null;
+    saveDb();
+  },
+  async saveProfile(profile){
+    db.users[db.session].profile=profile;
+    saveDb();
+    return profile;
+  },
+  async listCandidates(){
+    const me=db.users[db.session].profile;
+    const done=db.swipes[db.session];
+    const pr=prefsOf();
+    const base=SEED.filter(function(p){return !done[p.id]&&lookOk(me,p);});
+    let out=base.filter(function(p){return p.km<=pr.dist&&p.age>=pr.ageMin&&p.age<=pr.ageMax;});
+    if(!out.length&&(pr.autoDist||pr.autoAge)){
+      out=base.filter(function(p){
+        return (pr.autoDist||p.km<=pr.dist)&&(pr.autoAge||(p.age>=pr.ageMin&&p.age<=pr.ageMax));
+      });
+    }
+    const res=out.map(function(p){return {...p};});
+    for(let i=res.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      const t=res[i];res[i]=res[j];res[j]=t;
+    }
+    return res;
+  },
+  async getPrefs(){return prefsOf();},
+  async savePrefs(pr){
+    db.users[db.session].prefs={dist:pr.dist,ageMin:pr.ageMin,ageMax:pr.ageMax,autoDist:pr.autoDist,autoAge:pr.autoAge};
+    saveDb();
+  },
+  async listLikesMe(){
+    const me=db.users[db.session].profile;
+    const done=db.swipes[db.session];
+    const ids=db.liked[db.session]||[];
+    const out=[];
+    const seen={};
+    for(let i=0;i<ids.length;i++){
+      const p=findProfile(ids[i]);
+      if(p&&!seen[p.id]&&!done[p.id]&&(p.partner||lookOk(me,p))){seen[p.id]=1;out.push({...p});}
+    }
+    return out;
+  },
+  async revealLike(){
+    const key=db.session;
+    const u=db.users[key];
+    const ids=db.liked[key];
+    const done=db.swipes[key];
+    let pick=null;
+    if(u.partner&&ids.indexOf(u.partner.id)<0&&!done[u.partner.id])pick=u.partner;
+    if(!pick){
+      const pool=SEED.filter(function(p){return p.likesMe&&ids.indexOf(p.id)<0&&!done[p.id]&&lookOk(u.profile,p);});
+      if(pool.length)pick=pool[Math.floor(Math.random()*pool.length)];
+    }
+    if(!pick)return null;
+    ids.push(pick.id);
+    saveDb();
+    return {...pick};
+  },
+  async listTags(){
+    const cnt={};
+    for(let i=0;i<SEED.length;i++){
+      for(let k=0;k<SEED[i].tags.length;k++){
+        const t=SEED[i].tags[k];
+        cnt[t]=(cnt[t]||0)+1;
+      }
+    }
+    return Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a];});
+  },
+  async swipe(id,dir,msg){
+    const key=db.session;
+    db.swipes[key][id]=dir;
+    let matched=false,at=0,sm=[];
+    if(dir!=='nope'){
+      const t=findProfile(id);
+      const inLike=db.liked[key].indexOf(id)>=0;
+      if(inLike){
+        matched=true;
+      }else if(t&&t.likesMe){
+        matched=Math.random()<(dir==='super'?0.8:0.4);
+        if(matched)at=Date.now()+(dir==='super'?5000+Math.random()*10000:15000+Math.random()*40000);
+      }else{
+        matched=dir==='super'&&Math.random()<0.3;
+        if(matched)at=Date.now()+8000+Math.random()*20000;
+      }
+      if(matched){
+        const e={id:id,msgs:[]};
+        if(at){e.at=at;e.first=Math.random()<0.65;}
+        if(msg&&dir==='super'){sm=[{me:true,t:msg,ts:Date.now(),sup:true,read:false}];e.msgs=sm.map(function(g){return {...g};});}
+        db.matches[key].unshift(e);
+      }
+    }
+    saveDb();
+    return {matched:matched,at:at||Date.now(),msgs:sm};
+  },
+  async undo(id){
+    const key=db.session;
+    delete db.swipes[key][id];
+    db.matches[key]=db.matches[key].filter(function(m){return m.id!==id;});
+    saveDb();
+  },
+  async resetSwipes(){
+    const pt=db.users[db.session].partner;
+    db.swipes[db.session]={};
+    db.matches[db.session]=[];
+    db.liked[db.session]=[];
+    saveDb();
+  },
+  async listMatches(){
+    const now=Date.now();
+    return db.matches[db.session].filter(function(m){return !m.at||m.at<=now;}).map(function(m){
+      return {id:m.id,aiFirst:!!m.first,p:{...findProfile(m.id)},msgs:m.msgs.map(function(g){return {...g};}),unread:!!m.unread,mem:{...newMem(),...(m.mem||{})}};
+    });
+  },
+  async listPending(){
+    const now=Date.now();
+    return db.matches[db.session].filter(function(m){return m.at&&m.at>now;}).map(function(m){return {id:m.id,at:m.at};});
+  },
+  async hasMatch(id){
+    const e=db.matches[db.session].filter(function(m){return m.id===id;})[0];
+    return e?{first:!!e.first,msgs:(e.msgs||[]).map(function(g){return {...g};})}:null;
+  },
+  async addMessage(id,me,t,ts,extra){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++){
+      if(list[i].id===id){list[i].msgs.push({me:me,t:t,ts:ts,...(extra||{})});if(list[i].msgs.length>400)list[i].msgs.splice(0,list[i].msgs.length-400);break;}
+    }
+    saveDb();
+  },
+  async setUnread(id,val){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++)if(list[i].id===id){list[i].unread=!!val;break;}
+    saveDb();
+  },
+  async listBlocked(){
+    return ((db.blocked||{})[db.session]||[]).map(function(x){return {...x};});
+  },
+  async unblock(id){
+    const key=db.session;
+    if(db.blocked&&db.blocked[key])db.blocked[key]=db.blocked[key].filter(function(x){return x.id!==id;});
+    if(db.swipes[key])delete db.swipes[key][id];
+    saveDb();
+  },
+  async clearMessages(id){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++)if(list[i].id===id){list[i].msgs=[];break;}
+    saveDb();
+  },
+  async removeMatch(id,block,info){
+    const key=db.session;
+    if(block){
+      if(!db.blocked)db.blocked={};
+      if(!db.blocked[key])db.blocked[key]=[];
+      db.blocked[key].push({id:id,name:info.name,age:info.age});
+    }
+    db.matches[key]=db.matches[key].filter(function(m){return m.id!==id;});
+    db.swipes[key][id]='nope';
+    db.liked[key]=db.liked[key].filter(function(x){return x!==id;});
+    saveDb();
+  },
+  async touchSeen(){
+    if(!db.seen)db.seen={};
+    const prev=db.seen[db.session]||0;
+    db.seen[db.session]=Date.now();
+    saveDb();
+    return prev;
+  },
+  async getUi(){return {sound:true,dark:false,...(db.users[db.session].ui||{})};},
+  async saveUi(o){db.users[db.session].ui={sound:!!o.sound,dark:!!o.dark};saveDb();},
+  async setHeart(id,index,val){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++){
+      if(list[i].id===id){
+        if(list[i].msgs[index])list[i].msgs[index].liked=val;
+        break;
+      }
+    }
+    saveDb();
+  },
+  async setMem(id,mem){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++){
+      if(list[i].id===id){list[i].mem=mem;break;}
+    }
+    saveDb();
+  },
+  async clearMems(){
+    const list=db.matches[db.session];
+    for(let i=0;i<list.length;i++)delete list[i].mem;
+    saveDb();
+  },
+  async getPartner(){
+    const pt=db.users[db.session].partner;
+    return pt?{...pt}:null;
+  },
+  async createPartner(o){
+    const key=db.session;
+    const u=db.users[key];
+    const old=u.partner;
+    const pt=makePartner(u.profile,o);
+    u.partner=pt;
+    db.matches[key]=db.matches[key].filter(function(m){return !old||m.id!==old.id;});
+    db.liked[key]=(db.liked[key]||[]).filter(function(x){return !old||x!==old.id;});
+    saveDb();
+    return {...pt};
+  },
+  async stats(){
+    const done=db.swipes[db.session];
+    const s={likes:0,supers:0,passes:0,matches:db.matches[db.session].length};
+    for(const id in done){
+      if(done[id]==='like')s.likes++;
+      else if(done[id]==='super')s.supers++;
+      else s.passes++;
+    }
+    return s;
+  }
+};
+
+function hasBatchim(w){
+  const c=w.charCodeAt(w.length-1)-0xAC00;
+  return c>=0&&c<11172&&c%28!==0;
+}
+
+function copula(name){
+  const c=name.charCodeAt(name.length-1)-0xAC00;
+  return c>=0&&c<11172&&c%28===0?'예요':'이에요';
+}
+
+const ai={
+  async reply(p,msgs,mem){
+    return partnerBrain(p,msgs,mem);
+  }
+};
+
+
+
+const PERS={
+  warm:{label:'다정함',laugh:'ㅎㅎ',emo:['😊','🥰','☺️','💕'],jobs:['간호사','초등학교 교사','플로리스트','카페 사장'],bio:'말투가 따뜻하다는 말 자주 들어요. 하루 얘기 들어주는 거 좋아해서 편하게 말 걸어요'},
+  playful:{label:'장난꾸러기',laugh:'ㅋㅋㅋ',emo:['😝','😏','🤭','😜'],jobs:['영상 편집자','웹툰 작가','마케터','DJ'],bio:'장난 좀 많이 치는 편이에요 ㅋㅋ 심심하면 말 걸어요, 안 심심하게 해줄게요'},
+  calm:{label:'차분함',laugh:'ㅎㅎ',emo:['🙂','☕','🌿','🌙'],jobs:['도서관 사서','건축가','번역가','연구원'],bio:'조용한 편이지만 대화는 깊게 하는 걸 좋아해요. 산책이랑 따뜻한 차 좋아해요'},
+  lively:{label:'활발함',laugh:'ㅋㅋ',emo:['😆','🔥','🙌','✨'],jobs:['헬스 트레이너','여행 가이드','이벤트 기획자','러닝 코치'],bio:'에너지 넘친다는 소리 많이 들어요 ㅎㅎ 같이 뭐든 해보는 거 좋아해요'}
+};
+const NAMES={f:['하린','서아','지안','예나','유진','나연','다은','소율'],m:['도윤','시현','민재','지후','하준','태오','이안','준우']};
+const ASKS=['오늘 점심은 뭐 먹었어요?','요즘 제일 기대되는 게 뭐예요?','주말엔 보통 뭐 하면서 쉬어요?','최근에 웃었던 일 하나만 얘기해 줄래요?','요즘 자주 듣는 노래 있어요?','쉬는 날 딱 하루가 생기면 뭐 하고 싶어요?','어릴 때 제일 좋아했던 음식이 뭐예요?','요즘 잠은 잘 자고 있어요?','가보고 싶은 곳 있어요?','요즘 제일 자주 하는 생각이 뭐예요?','오늘 하루 중에 제일 좋았던 순간은요?','요즘 빠져 있는 게 있어요?','아침형이에요 저녁형이에요?','혼자 있을 땐 보통 뭐 해요?','최근에 산 것 중에 제일 만족스러운 게 뭐예요?','좋아하는 계절 있어요?','스트레스 풀 땐 뭐 하는 편이에요?','살면서 제일 오래 한 취미가 뭐예요?'];
+const ACKS=['그렇구나','아 그렇군요','오, 그렇군요','음음 알겠어요','그랬구나','오호','헉 그랬어요','아하','그렇군요 ㅎㅎ','진짜요'];
+const FOLLOWS=['그래서 어떻게 됐어요?','그때 기분은 어땠어요?','조금 더 자세히 말해줄래요?','그 얘기 더 듣고 싶어요','그건 좀 의외인데요','그 뒤로는 어떻게 됐어요?','와 그 얘기 흥미로운데요'];
+const TEASE=['방금 말, 저장해 놨어요 ㅋㅋㅋ','아 근데 솔직히 좀 귀엽네요 😏','계속 그렇게 말해주면 곤란한데요 🤭','오늘따라 말이 잘 통하네요 😝'];
+const TOPIC_RE=new RegExp(Object.keys(EMOJI).join('|'));
+const STICKERS=['😀','😂','🥰','😭','😡','👍','🙏','💪','😴','🤔','😘','🎉','☕','🍺','🌙','❤️'];
+const STAGES=['🌱 어색한 사이','💗 친해지는 중','💞 편한 사이'];
+const JOBTALK=[
+[/셰프|요리|바리스타|베이커|파티시에/,['오늘 새 메뉴 맛 보다가 하루가 다 갔어요','일하면서 먹는 게 일인데 퇴근하면 또 배고파요 ㅋㅋ','최근에 진짜 맛있는 집 하나 발견했어요']],
+[/개발|엔지니어|데이터|프로그래머/,['버그 하나 잡느라 한참 걸렸어요','오늘 코드 리뷰 받다가 멘탈 조금 나갔어요','퇴근하면 모니터 보기 싫은데 또 게임해요']],
+[/디자이너|일러스트|웹툰|작가|사진|영상|감독/,['작업하다 보니 시간이 훅 갔어요','오늘 마감 하나 끝내서 좀 홀가분해요','수정 요청 또 들어와서 한숨 쉬는 중이에요']],
+[/의사|간호|약사|수의/,['오늘 좀 정신없는 하루였어요','쉬는 시간에 겨우 커피 한 잔 마셨어요','퇴근하고 나니까 어깨가 무거워요']],
+[/트레이너|필라테스|소방|코치/,['오늘 운동하고 왔더니 몸이 개운해요','아침 운동 하고 나면 하루가 길어요','단백질 챙겨 먹는 중이에요']],
+[/대학|연구|학생/,['과제 하다가 잠깐 쉬는 중이에요','오늘 수업 너무 졸렸어요','머리가 좀 복잡한 하루예요']],
+[/마케터|창업|기획|영업|디자인/,['오늘 회의만 세 번 했어요','아이디어 짜다가 머리가 지끈해요','퇴근하고 싶다는 생각만 하루 종일 했어요']],
+[/승무원|파일럿|가이드/,['비행 끝나고 시차 적응 중이에요','다음 여행지 후보 고르는 중이에요']],
+[/뮤지션|래퍼|DJ/,['오늘 가사 쓰다가 한 줄도 못 건졌어요','연습하다 보니 손가락이 아파요']],
+[/사서|교사|번역/,['책 정리하다가 읽고 싶은 책을 또 찾았어요','오늘은 조용한 하루였어요']],
+[/건축|플로리스트/,['작업하다 창밖 보니 노을이 예뻤어요','일하는 동안 기분은 좋았어요']]
+];
+const TAGTALK={러닝:['오늘 러닝하고 왔는데 숨 차 죽는 줄 알았어요'],커피:['방금 커피 한 잔 내렸는데 향이 너무 좋아요','오늘 벌써 커피 세 잔째예요 ㅋㅋ'],영화:['어제 본 영화 아직도 여운이 남아요'],음악:['요즘 꽂힌 노래 하나를 계속 반복해서 듣고 있어요'],게임:['한 판만 하려다 밤샐 뻔했어요'],고양이:['우리 고양이가 자꾸 키보드 위에 앉아요'],독서:['책 읽다가 잠들었어요'],여행:['다음 여행 어디 갈지 찾아보는 중이에요'],맛집:['새로 알게 된 맛집 있는데 언제 같이 가요'],와인:['오늘은 와인 한 잔 하고 싶은 날이에요'],산책:['저녁에 산책하는데 바람이 좋아요'],사진:['오늘 찍은 사진 정리하는 중이에요'],그림:['그림 그리다 시간 가는 줄 몰랐어요'],캠핑:['캠핑 가고 싶어서 장비 구경만 하고 있어요'],헬스:['오늘 하체 하는 날이라 계단이 무서워요'],요리:['오늘 해 먹은 요리가 의외로 성공했어요'],베이킹:['베이킹하다가 반죽이 말썽이에요'],자전거:['자전거 타고 나갔다 왔는데 바람이 시원했어요'],드라이브:['저녁에 드라이브 하고 싶은 날씨예요']};
+const EMO_RE=/\s*[\u{1F300}-\u{1FAFF}☀-➿]️?/gu;
+
+let VP=null;
+function pick(list,recent){
+  let src=list;
+  if(VP&&list.length>=4){
+    const n=list.length;
+    const w=Math.max(2,Math.ceil(n/2));
+    const st=hsh(String(VP.id||VP.name)+list[0],41)%n;
+    src=[];
+    for(let i=0;i<w;i++)src.push(list[(st+i)%n]);
+  }
+  const fresh=src.filter(function(x){return recent.indexOf(x)<0;});
+  const pool=fresh.length?fresh:(src===list?list:list.filter(function(x){return recent.indexOf(x)<0;}));
+  const f=pool.length?pool:list;
+  return f[Math.floor(Math.random()*f.length)];
+}
+
+const WARM_RE=/ㅎㅎ|ㅋㅋ|좋아|고마|보고\s?싶|귀여|예쁘|멋있|최고|사랑|❤|♥|😊|🥰|😍/;
+const COLD_RE=/^(응|ㅇㅇ|ㅇㅋ|그래|몰라|아니|됐어)[.!ㅋㅎ]*$/;
+const TOPICS=[['weekend',/주말|토요일|일요일|휴일|쉬는\s?날/],['work',/회사|출근|퇴근|야근|직장|알바|과제|업무/],['food',/먹|밥|맛집|음식|커피|술|치킨|라면|점심|저녁/],['move',/운동|러닝|헬스|요가|등산|산책|자전거/],['movie',/영화|드라마|넷플|웹툰|책|노래|음악|콘서트/],['trip',/여행|바다|제주|휴가|캠핑|비행기/],['family',/가족|엄마|아빠|부모|동생|언니|오빠|친구/],['mood',/피곤|졸려|힘들|우울|스트레스|지쳐|속상/]];
+const TOPIC_FOLLOW={
+weekend:['주말에 뭐 할지 정했어요?','그래서 이번 주말엔 어디 갈 거예요?','주말엔 쉬는 편이에요, 돌아다니는 편이에요?'],
+work:['일은 요즘 좀 어때요?','오늘 일하면서 제일 힘든 게 뭐였어요?','퇴근하면 주로 뭐 해요?'],
+food:['제일 좋아하는 음식 뭐예요?','최근에 먹은 것 중에 제일 맛있었던 건요?','먹는 얘기 하니까 배고파져요'],
+move:['운동은 혼자 하는 편이에요?','요즘 몸은 좀 어때요?','운동하고 나면 기분 좋지 않아요?'],
+movie:['요즘 뭐 보는 거 있어요?','최근에 본 것 중에 추천할 만한 거 있어요?','그런 거 보면서 쉬는 거 좋아해요?'],
+trip:['제일 가보고 싶은 데가 어디예요?','여행 가면 계획 세우는 편이에요?','다음 휴가엔 어디 가고 싶어요?'],
+family:['가족이랑은 자주 연락해요?','친구들이랑은 자주 만나요?','그 얘기 조금 더 해줘요'],
+mood:['좀 괜찮아졌어요?','오늘은 일찍 쉬어요 무리하지 말고','제가 들어줄게요 더 얘기해요']
+};
+const GENERIC_RE=/^(응+|웅+|ㅇㅇ+|ㅇㅋ|그래+|그렇구나|그치|맞아|음+|넹|네+|아+|오+|ㅋ+|ㅎ+|헐|그거|아까|그때)[?!.~ㅋㅎ ]*$/;
+const RECALL_RE=/아까.*(그거|얘기|말)|그거\s*(뭐|어때)|그때\s*그/;
+const GEN_Q=['요즘은 뭐 하면서 지내요?','오늘 하루는 어땠어요?','그쪽은 어때요?','주말엔 보통 뭐 해요?','요즘 제일 꽂힌 게 뭐예요?','스트레스 받을 땐 뭐 해요?','최근에 제일 잘한 선택이 뭐예요?','쉬는 날엔 주로 어디 가요?','좋아하는 계절 있어요?','어릴 때 꿈이 뭐였어요?'];
+const SLOTS=[['night',function(h,d){return h>=1&&h<5;},['슬슬 졸려요 ㅠㅠ','이 시간에 안 자고 뭐해요?','눈이 자꾸 감겨요']],['commute',function(h,d){return d>0&&d<6&&h>=8&&h<9;},['출근 중이라 짧게 답할게요','지하철이라 답이 좀 느려도 이해해줘요']],['lunch',function(h,d){return h>=12&&h<13;},['점심 먹는 중이에요','밥 먹으면서 답해요 ㅎㅎ']],['late',function(h,d){return h>=22;},['씻고 누울 준비 중이에요','하루가 길었네요 이제 쉬어야죠']]];
+const AI_EVENTS=[
+{k:'name',min:10,aff:40,text:['우리 이제 말 편하게 해도 돼요?','슬슬 말 놓을까요? ㅎㅎ'],yes:['좋아 그럼 이제 편하게 말할게 ㅎㅎ','오 좋아 편하게 하자'],no:['아 그렇구나 알겠어요 천천히 해요 ㅎㅎ','네 그럼 지금처럼 편한 속도로 해요']},
+{k:'num',min:16,aff:55,text:['전화번호 교환할래요? 여기서만 얘기하기 아쉬워서요','통화도 해보고 싶은데 번호 줄래요?'],yes:['앗 진짜요? 근데 번호는 직접 만나서 알려줄게요 ㅎㅎ 지금은 여기가 편해요','좋아요! 근데 아직은 여기서 더 얘기하고 싶어요'],no:['괜찮아요 천천히 해요 ㅎㅎ','맞아요 서두를 필요 없죠']},
+{k:'meet',min:26,aff:65,text:['이번 주말에 시간 되면 만나서 커피 마실래요?','우리 한번 만나볼까요?'],yes:['정말요? 설레네요 ㅎㅎ 날짜는 천천히 정해요','좋아요! 장소는 같이 정해요'],no:['네 편할 때 말해줘요 기다릴게요','알겠어요 부담 갖지 말아요']}
+];
+const YES_RE=/좋아|그래|네|응|ㅇㅋ|ㅇㅇ|콜|가자|하자|괜찮/;
+const NO_RE=/싫|아니|좀|나중|부담|글쎄|안\s?돼|못/;
+
+function affOf(mem){return mem&&mem.aff!=null?mem.aff:30;}
+
+function bumpAff(mem,t){
+  let a=affOf(mem);
+  if(BAD_RE.test(t))a-=6;
+  else if(WARM_RE.test(t))a+=2;
+  else if(t.length<=2||COLD_RE.test(t))a-=1;
+  if(t.length>=15)a+=1;
+  if(/[?？]/.test(t))a+=1;
+  mem.aff=Math.max(0,Math.min(100,a));
+}
+
+function noteTopic(mem,t,ts){
+  for(let i=0;i<TOPICS.length;i++){
+    if(TOPICS[i][1].test(t)){mem.topic={k:TOPICS[i][0],ts:ts};return;}
+  }
+}
+
+function dupLine(m,x){
+  if(x.length<4||x.charAt(0)==='\u0001')return false;
+  let c=0;
+  for(let i=m.msgs.length-1;i>=0&&c<30;i--){
+    if(m.msgs[i].me)continue;
+    c++;
+    if(m.msgs[i].t===x)return true;
+  }
+  return false;
+}
+
+function hasDup(m,list){
+  for(let i=0;i<list.length;i++)if(dupLine(m,list[i]))return true;
+  return false;
+}
+
+function meCount(m){
+  let n=0;
+  for(let i=0;i<m.msgs.length;i++)if(m.msgs[i].me)n++;
+  return n;
+}
+
+function shapeReply(m,list,t){
+  const mem=m.mem;
+  if(!mem.ev)mem.ev={};
+  let out=list;
+  let handled=false;
+  if(mem.pend){
+    let ev=null;
+    for(let i=0;i<AI_EVENTS.length;i++)if(AI_EVENTS[i].k===mem.pend)ev=AI_EVENTS[i];
+    mem.pend='';
+    if(ev){
+      if(NO_RE.test(t)){
+        mem.aff=Math.max(0,affOf(mem)-3);
+        out=kakao(m.p,[pick(ev.no,[])],m);
+        handled=true;
+      }else if(YES_RE.test(t)&&t.length<=14){
+        mem.aff=Math.min(100,affOf(mem)+4);
+        if(ev.k==='name')mem.banForce=true;
+        out=kakao(m.p,[pick(ev.yes,[])],m);
+        handled=true;
+      }
+    }
+  }
+  if(!handled&&mem.topic&&Date.now()-mem.topic.ts<900000&&(GENERIC_RE.test(t)||RECALL_RE.test(t))&&TOPIC_FOLLOW[mem.topic.k]&&Math.random()<0.7){
+    out=kakao(m.p,[pick(TOPIC_FOLLOW[mem.topic.k],[])],m);
+    handled=true;
+  }
+  if(handled)return out;
+  const now=new Date();
+  const hr=now.getHours(),dy=now.getDay(),day=now.toDateString();
+  for(let i=0;i<SLOTS.length;i++){
+    const sl=SLOTS[i];
+    if(sl[1](hr,dy)&&!(mem.slot&&mem.slot.k===sl[0]&&mem.slot.day===day)&&Math.random()<0.3){
+      mem.slot={k:sl[0],day:day};
+      out=kakao(m.p,[pick(sl[2],[])],m).concat(out.slice(0,2));
+      break;
+    }
+  }
+  if(!mem.pend&&(mem.bad||0)===0){
+    const n=meCount(m);
+    for(let i=0;i<AI_EVENTS.length;i++){
+      const ev=AI_EVENTS[i];
+      if(mem.ev[ev.k]||n<ev.min||affOf(mem)<ev.aff)continue;
+      if(Math.random()<0.5){
+        mem.ev[ev.k]=1;
+        mem.pend=ev.k;
+        out=out.slice(0,2).concat(kakao(m.p,[pick(ev.text,[])],m));
+      }
+      break;
+    }
+  }
+  return out;
+}
+
+function partnerBrain(p,msgs,mem){
+  VP=p;
+  try{return partnerBrainRaw(p,msgs,mem);}finally{VP=null;}
+}
+
+function proactiveLines(p,mem,msgs){
+  VP=p;
+  try{return proactiveLinesRaw(p,mem,msgs);}finally{VP=null;}
+}
+
+function makePartner(me,o){
+  const st=PERS[o.style];
+  const pool=Object.keys(EMOJI).filter(function(k){return me.tags.indexOf(k)<0;});
+  const extra=pool[Math.floor(Math.random()*pool.length)];
+  return {id:'ai_'+Date.now().toString(36),name:o.name,call:o.call,gender:o.gender,style:o.style,age:Math.max(19,me.age+Math.floor(Math.random()*5)-2),job:st.jobs[Math.floor(Math.random()*st.jobs.length)],region:me.region,km:2,likesMe:true,online:true,partner:true,bio:st.bio,tags:me.tags.slice(0,3).concat(extra)};
+}
+
+const PRO={tick:10000,first:8000,idle:45000,gap:21600000,evWait:1200000};
+const POS_RE=/재밌|재미있|좋아|좋았|행복|신나|뿌듯|보람|괜찮/;
+const LIKE_RE=/^(.{1,10}?)(을|를|은|는|이|가)?\s*(진짜|너무|엄청|완전)?\s*좋아(해|하는|한다|함)/;
+const HATE_RE=/^(.{1,10}?)(을|를|은|는|이|가)?\s*(진짜|너무|엄청|완전)?\s*(싫어|별로야|못\s*먹)/;
+const SKIP_RE=/^(뭐|뭘|무엇|어떤|누가|너|널|당신|그|이|저|것|거)$/;
+const JOBS=['회사원','학생','대학생','개발자','디자이너','간호사','선생님','취준생','프리랜서','공무원','의사','군인','알바'];
+const EVENTS=['면접','시험','발표','여행','데이트','약속','생일','이사','출장','수술','병원','소개팅'];
+const STYLES=['warm','playful','calm','lively'];
+
+function hasDue(mem){
+  const now=Date.now();
+  for(let i=0;i<mem.events.length;i++)if(!mem.events[i].asked&&now-mem.events[i].ts>PRO.evWait)return true;
+  return false;
+}
+
+const BAD_RE=/씨발|시발|씨팔|ㅅㅂ|ㅆㅂ|병신|ㅂㅅ|지랄|ㅈㄹ|좆|존나|ㅈㄴ|개새|새끼|느금|꺼져|닥쳐|미친년|미친놈|썅|엿\s*먹|걸레|창녀|보지|씹/;
+function newMem(){return {likes:[],dislikes:[],job:'',events:[],mood:'',moodTs:0,bad:0,notes:[],aff:30,topic:null,ev:{},pend:'',slot:null,banForce:false};}
+function styleOf(p){return p.style||STYLES[(p.hue||0)%4];}
+function callOf(p){return p.call||(state.me?state.me.name:'당신');}
+
+function addUniq(list,v,max){
+  if(!v)return;
+  const i=list.indexOf(v);
+  if(i>=0)list.splice(i,1);
+  list.push(v);
+  if(list.length>max)list.shift();
+}
+
+function recallLine(mem,minAge,maxAge){
+  if(!mem.notes)return null;
+  const now=Date.now();
+  const c=mem.notes.filter(function(n){return !n.asked&&now-n.ts>minAge&&now-n.ts<maxAge;});
+  if(!c.length)return null;
+  const n=c[Math.floor(Math.random()*c.length)];
+  n.asked=true;
+  const snip=n.t.length>20?n.t.slice(0,20)+'…':n.t;
+  const age=now-n.ts;
+  const w=age<14400000?'아까':age<86400000?'좀 전에':age<172800000?'어제':'며칠 전에';
+  return pick([
+    w+' "'+snip+'" 라고 했던 거 생각났어요. 그건 어떻게 됐어요?',
+    '문득 '+w+' 얘기한 "'+snip+'" 생각나서요 ㅎㅎ',
+    '"'+snip+'" 이거 계속 신경 쓰였는데 지금은 어때요?'
+  ],[]);
+}
+
+function learn(mem,t,ts){
+  if(BAD_RE.test(t))return;
+  noteTopic(mem,t,ts);
+  const question=/[?？]\s*$/.test(t);
+  if(!question&&t.length>=10&&t.length<=80){
+    if(!mem.notes)mem.notes=[];
+    let dupn=false;
+    for(let i=0;i<mem.notes.length;i++)if(mem.notes[i].t===t)dupn=true;
+    if(!dupn){
+      mem.notes.push({t:t,ts:ts,asked:false});
+      if(mem.notes.length>12)mem.notes.shift();
+    }
+  }
+  const s=t.replace(/^(나는|난|나|저는|전|제가|내가)\s*/,'').trim();
+  let m=question?null:LIKE_RE.exec(s);
+  if(m&&!SKIP_RE.test(m[1].trim()))addUniq(mem.likes,m[1].trim(),8);
+  m=question?null:HATE_RE.exec(s);
+  if(m&&!SKIP_RE.test(m[1].trim()))addUniq(mem.dislikes,m[1].trim(),8);
+  if(/나는|난|저는|전|제가|내\s*직업/.test(t)){
+    for(let i=0;i<JOBS.length;i++)if(t.indexOf(JOBS[i])>=0){mem.job=JOBS[i];break;}
+  }
+  for(let i=0;i<EVENTS.length;i++){
+    const k=EVENTS[i];
+    if(t.indexOf(k)<0)continue;
+    let dup=false;
+    for(let j=0;j<mem.events.length;j++)if(mem.events[j].k===k&&!mem.events[j].asked)dup=true;
+    if(!dup){
+      mem.events.push({k:k,ts:ts,asked:false});
+      if(mem.events.length>5)mem.events.shift();
+    }
+  }
+  if(/피곤|힘들|지쳤|우울|슬퍼|속상|스트레스|외로/.test(t)&&!POS_RE.test(t)){mem.mood='down';mem.moodTs=ts;}
+  else if(/행복|신나|기뻐/.test(t))mem.mood='up';
+}
+
+function styleOut(p,out,recent){
+  const style=styleOf(p);
+  const res=out.map(function(x){
+    let y=x.trim();
+    if(style==='lively')y=y.replace(/([요죠])\.$/,'$1!');
+    if(style==='calm'&&Math.random()<0.6)y=y.replace(EMO_RE,'');
+    return y;
+  }).filter(Boolean);
+  if(style==='playful'&&Math.random()<0.3)res.push(pick(TEASE,recent));
+  return res.slice(0,3);
+}
+
+const QBANK={
+'주말엔':{러닝:'한강 뛰고 브런치 먹는 게 루틴이에요',커피:'카페 한 곳 정해서 반나절 있다 와요',영화:'집에서 영화 두 편 몰아봐요',여행:'근교로 당일치기 자주 가요',독서:'서점 가서 책 한 권 사 와요',게임:'친구들이랑 밤새 게임해요',요리:'새 레시피 하나 도전해요',맛집:'가보고 싶던 맛집 도장 깨기',헬스:'아침 운동하고 낮잠 자요',산책:'동네 한 바퀴 돌고 카페 가요',_:['늦잠 자고 천천히 뭐 할지 정해요','밀린 집안일 하고 저녁에 맛있는 거 먹어요','딱히 계획 안 세우고 그날 기분대로 움직여요']},
+'요즘 빠진 것':{러닝:'러닝 앱 기록 갱신하는 재미',커피:'원두 바꿔가며 내려 마시는 것',음악:'플레이리스트 새로 만드는 것',그림:'아이패드로 낙서하는 것',게임:'새로 나온 게임 하나에 푹 빠짐',사진:'필름 카메라로 아무 데나 찍기',와인:'와인 종류 공부하는 중',_:['유튜브 알고리즘이 데려다 준 취미들','잠들기 전에 팟캐스트 듣는 것','요리 영상 보고 따라 하기']},
+'이런 사람이 좋아요':{_:['말이 잘 통하는 사람','웃음 코드가 맞는 사람','연락 꾸준히 해주는 사람','같이 맛있는 거 먹으면 행복해지는 사람','조용히 있어도 안 어색한 사람']},
+'나를 한마디로':{_:['낯은 가리는데 친해지면 말 많아요','처음엔 조용하다가 점점 수다쟁이','생각보다 엉뚱한 편이에요','계획형인 척하는 즉흥형','웃음이 많은 편이에요']},
+'쉬는 날 꼭 하는 것':{_:['늦잠 자고 일어나서 커피 한 잔','침대에서 뒹굴며 영상 보기','밀린 연락 답장하기','좋아하는 음식 시켜 먹기','동네 산책하면서 멍때리기']},
+'최근에 웃은 일':{_:['친구가 한 말실수 때문에 한참 웃었어요','길 가다 강아지가 저한테 달려왔어요','혼자 영화 보다가 빵 터졌어요','엘리베이터에서 사람들이 같이 같은 층 눌렀어요']}
+};
+const QKEYS=Object.keys(QBANK);
+function promptsOf(p){
+  const key=String(p.id||p.name)+'q';
+  const out=[];
+  const used={};
+  for(let n=0;n<2;n++){
+    let qi=hsh(key,20+n)%QKEYS.length;
+    while(used[qi])qi=(qi+1)%QKEYS.length;
+    used[qi]=1;
+    const q=QKEYS[qi];
+    const bank=QBANK[q];
+    let a='';
+    for(let i=0;i<p.tags.length;i++)if(bank[p.tags[i]]){a=bank[p.tags[i]];break;}
+    if(!a){const arr=bank._;a=arr[hsh(key,30+n)%arr.length];}
+    out.push({q:q,a:a});
+  }
+  return out;
+}
+
+const B_HOME=['부산에서 올라왔어요','원래 대구 출신이에요','서울 토박이예요','인천에서 자랐어요','광주에서 대학 다니다 올라왔어요','대전 출신이에요','제주도에서 자랐어요','수원에서 자랐어요'];
+const B_FAM=['동생이 한 명 있어요','위에 형제가 한 명 있어요','외동이에요','동생이 둘 있어요','부모님이랑 셋이서 지냈어요','가족끼리 정말 친해요'];
+const B_PET=['고양이 한 마리 키워요 이름은 두부예요','강아지 키워요 이름은 보리예요','반려동물은 없는데 키우고 싶어요','고양이 두 마리랑 같이 살아요','물고기 키우는 중이에요 말은 못 알아듣지만요 ㅎㅎ','식물 키우는 게 더 맞는 것 같아요'];
+const B_FOOD=['떡볶이','마라탕','파스타','곱창','초밥','국밥','치킨','김치찌개','샐러드','타코','순두부찌개'];
+const B_ROUT=['주말엔 늦잠 자고 카페 가는 편이에요','주말엔 집에서 영화 보면서 쉬어요','주말엔 밖에 나가서 걷는 편이에요','주말엔 친구 만나서 맛집 가요','주말엔 밀린 정리하고 일찍 자요'];
+
+function bioOf(p){
+  if(p._bio)return p._bio;
+  const id=String(p.id||p.name);
+  p._bio={
+    home:B_HOME[hsh(id,71)%B_HOME.length],
+    fam:B_FAM[hsh(id,72)%B_FAM.length],
+    pet:B_PET[hsh(id,73)%B_PET.length],
+    food:B_FOOD[hsh(id,74)%B_FOOD.length],
+    rout:B_ROUT[hsh(id,75)%B_ROUT.length]
+  };
+  return p._bio;
+}
+
+function tagMatch(p,x){
+  return p.tags.some(function(g){return x.indexOf(g)>=0||g.indexOf(x)>=0;});
+}
+
+function selfLine(p,recent){
+  const c=[];
+  for(let i=0;i<JOBTALK.length;i++)if(JOBTALK[i][0].test(p.job||''))for(let k=0;k<JOBTALK[i][1].length;k++)c.push(JOBTALK[i][1][k]);
+  for(let i=0;i<p.tags.length;i++){const t=TAGTALK[p.tags[i]];if(t)for(let k=0;k<t.length;k++)c.push(t[k]);}
+  const b=bioOf(p);
+  c.push('갑자기 '+b.food+' 먹고 싶어졌어요 ㅋㅋ');
+  return c.length?pick(c,recent):'';
+}
+
+function proactiveLinesRaw(p,mem,msgs){
+  const st=PERS[styleOf(p)];
+  const call=callOf(p);
+  const e=st.emo[Math.floor(Math.random()*st.emo.length)];
+  const h=new Date().getHours();
+  const now=Date.now();
+  const recent=[];
+  for(let i=msgs.length-1;i>=0&&recent.length<10;i--)if(!msgs[i].me)recent.push(msgs[i].t);
+  const R=function(list){return pick(list,recent);};
+  let out=null;
+  let due=null;
+  for(let i=0;i<mem.events.length;i++){
+    if(!mem.events[i].asked&&now-mem.events[i].ts>PRO.evWait){due=mem.events[i];break;}
+  }
+  if(due){
+    due.asked=true;
+    out=[call+'님, 그러고 보니 '+due.k+' 어떻게 됐어요? 계속 신경 쓰였어요 '+e];
+  }else if(mem.mood==='down'&&now-mem.moodTs>PRO.evWait&&now-mem.moodTs<86400000){
+    mem.mood='';
+    out=[R(['아까 많이 힘들어 보였는데 괜찮아요?','마음이 쓰여서 연락했어요. 지금은 좀 어때요?']),'무슨 일이든 편하게 말해줘요'];
+  }else if(mem.likes.length&&Math.random()<0.4){
+    const g=mem.likes[Math.floor(Math.random()*mem.likes.length)];
+    out=[g+' 얘기 또 하고 싶어서 왔어요 '+e,call+'님은 요즘도 '+g+' 자주 해요?'];
+  }
+  if(!out&&Math.random()<0.55){
+    const rl=recallLine(mem,1800000,259200000);
+    if(rl)out=[rl];
+  }
+  if(!out&&Math.random()<0.4){
+    const sl=selfLine(p,recent);
+    if(sl)out=[sl,R(['오늘은 어땠어요?','뭐 하고 있었어요?','당신은 오늘 어땠어요?'])];
+  }
+  if(!out){
+    if(h<10)out=[R(['좋은 아침이에요 '+call+'님 '+e,'일어났어요? 오늘도 힘내요 '+e]),'아침은 챙겨 먹을 거예요?'];
+    else if(h<14)out=[R(['점심은 챙겨 먹었어요?','오전엔 어땠어요? 궁금해서 왔어요 '+e])];
+    else if(h<18)out=[R(['오후 버티는 중이에요? 같이 힘내요 '+e,'갑자기 '+call+'님 생각나서 연락했어요 '+e])];
+    else if(h<22)out=[R(['퇴근했어요? 오늘 하루 어땠어요?','저녁은 뭐 먹었어요? '+e]),'오늘 얘기 듣고 싶어요'];
+    else out=[R(['아직 안 자요? '+e,'잘 준비해요, 오늘도 수고했어요 '+e]),'자기 전에 잠깐 얘기해도 좋아요'];
+  }
+  return styleOut(p,out,recent);
+}
+
+function partnerBrainRaw(p,msgs,mem){
+  mem=mem||newMem();
+  const st=PERS[styleOf(p)];
+  const me=state.me;
+  const t=msgs[msgs.length-1].t.trim();
+  const call=callOf(p);
+  const recent=[],prev=[];
+  for(let i=msgs.length-2;i>=0;i--){
+    if(msgs[i].me){if(prev.length<14)prev.push(msgs[i].t);}
+    else if(recent.length<10)recent.push(msgs[i].t);
+  }
+  const lastBot=recent[0]||'';
+  const botAsked=/[?？]\s*$/.test(lastBot);
+  const e=st.emo[Math.floor(Math.random()*st.emo.length)];
+  const lf=st.laugh;
+  const now=new Date();
+  const h=now.getHours();
+  const tags=p.tags.concat(me?me.tags:[]);
+  let hit='',seen='';
+  for(let i=0;i<tags.length;i++){
+    if(t.indexOf(tags[i])>=0){hit=tags[i];break;}
+  }
+  for(let i=0;i<tags.length&&!seen;i++){
+    for(let k=0;k<prev.length;k++){
+      if(prev[k].indexOf(tags[i])>=0){seen=tags[i];break;}
+    }
+  }
+  const R=function(list){return pick(list,recent);};
+  const asks=ASKS.concat(tags.map(function(g){return g+' 요즘도 자주 해요?';}));
+  const ask=function(){return R(asks);};
+  const greet=h<11?'좋은 아침이에요':h<18?'안녕하세요':'좋은 저녁이에요';
+  const snip=t.length>14?t.slice(0,14)+'…':t;
+  if(BAD_RE.test(t)){
+    mem.bad=(mem.bad||0)+1;
+    if(mem.bad>=5)return [];
+    if(mem.bad>=3)return [R(['계속 그렇게 말하면 대화하기 힘들어요','그런 말투는 불편해요. 말 예쁘게 해줄 때 다시 얘기해요','지금은 얘기하고 싶지 않아요'])];
+    return [R(['그런 말은 좀 상처가 돼요','갑자기 왜 그래요? 그런 표현은 불편해요','그런 말은 하지 말아줘요']),R(['화나는 일 있었어요?','무슨 일 있었으면 편하게 말해줘요','말 예쁘게 해주면 얘기 더 들어줄게요'])];
+  }
+  if(mem.bad)mem.bad--;
+  const bio=bioOf(p);
+  const jobRe=new RegExp('(나는|난|저는|전|제가).{0,6}('+JOBS.join('|')+')');
+  const rules=[
+    [/(가족|형제|남매|동생|외동).*(있|몇|어때|\?|？)|가족\s*(얘기|소개)/,function(){return [bio.fam,R(['그쪽은요?','가족이랑은 자주 연락해요?'])];}],
+    [/(강아지|고양이|반려|펫|애완).*(있|키우|\?|？)|키우는\s*(거|동물|애)/,function(){return [bio.pet,R(['키우는 거 있어요?','동물 좋아해요?'])];}],
+    [/고향|어디\s*(살|출신|사)|어디서\s*(왔|자랐)|사는\s*곳/,function(){return [bio.home,R(['그쪽은 어디예요?','고향은 어디예요?'])];}],
+    [/(음식|메뉴).*(좋아|뭐|제일)|(좋아하는|제일).*(음식|메뉴)|무슨\s*음식/,function(){return [bio.food+' 좋아해요 스트레스 받을 때 특히요',R(['그쪽은요?','제일 좋아하는 음식 뭐예요?'])];}],
+    [/주말.*(뭐\s*해|뭐하|어떻게|보내|계획)/,function(){return [bio.rout,R(['그쪽은 어때요?','이번 주말엔 계획 있어요?'])];}],
+    [jobRe,function(){
+      const j=jobRe.exec(t)[2];
+      return [R([j+'이시구나 멋있어요','오 '+j+' 하시는구나 '+e]),R(['요즘 많이 바빠요?','그 일은 어떻게 시작하게 됐어요?','일하면서 제일 좋을 때는 언제예요?'])];
+    }],
+    [/좋아(해요|해|하는데|함|합니다)/,function(){
+      if(/[?？]/.test(t)||/너|당신|자기/.test(t))return null;
+      const mt=/(.{1,10}?)(을|를)?\s*(진짜|너무|엄청|완전)?\s*좋아(해요|해|하는데|함|합니다)/.exec(t.replace(/^(나는|난|저는|전|제가|나도|저도)\s*/,''));
+      if(!mt)return null;
+      const x=mt[1].trim();
+      if(x.length<2||SKIP_RE.test(x))return null;
+      if(tagMatch(p,x))return ['저도 '+x+' 좋아해요 '+lf,R(['언제부터 좋아했어요?','제일 좋아하는 게 뭐예요?'])];
+      return [x+' 좋아하시는구나 저는 '+p.tags[0]+' 쪽이에요 '+e,R(['어떤 점이 제일 좋아요?','언제부터 좋아했어요?'])];
+    }],
+    [/사람이야|사람이에요|사람이니|AI야|AI예요|AI이|에이아이|인공지능|챗봇|진짜\s*사람/i,function(){
+      return [R(['저는 AI예요. 그래도 '+call+'님이랑 나누는 대화는 진심으로 하고 있어요 '+e,'맞아요, 저는 AI예요. 사람인 척하지는 않을게요. 그래도 곁에서 얘기 들어주는 건 잘할 자신 있어요 '+e])];
+    }],
+    [/만나자|만나고\s*싶|데이트|놀러\s*(가|오)|실제로|직접\s*보/,function(){
+      return [R(['저는 AI라서 실제로 만나지는 못해요. 대신 같이 가고 싶은 곳을 얘기하면서 데이트해요 '+e,'직접 만나는 건 못 해도, 마음 맞는 대화는 얼마든지 가능해요 '+e]),R(['같이 가고 싶은 곳 하나만 골라 봐요','어디서 뭐 하는 데이트가 제일 좋아요?'])];
+    }],
+    [/기억(해|나|하)|내가\s*뭐\s*(좋아|싫어)|내\s*(취미|직업)\s*(뭐|알)/,function(){
+      const parts=[];
+      if(mem.likes.length)parts.push(mem.likes.join(', ')+' 좋아한다고 했죠');
+      if(mem.dislikes.length)parts.push(mem.dislikes.join(', ')+'는 별로라고 했고요');
+      if(mem.job)parts.push(mem.job+(hasBatchim(mem.job)?'이':'')+'라고 했던 것도 기억해요');
+      return parts.length?['그럼요, '+call+'님이 '+parts.join(', ')+' '+e,'더 알려주면 다 기억해 둘게요']:['아직 많이는 몰라요. 천천히 알려줘요 '+e];
+    }],
+    [/예쁘|이쁘|귀엽|멋있|잘생|매력|최고야/,function(){
+      return [R(['갑자기 그런 말 하면 어떡해요 '+e,'그렇게 말해주니까 기분 좋아요 '+lf,call+'님도 충분히 멋진 사람이에요 '+e]),R(['말 잘하는 것도 반칙이에요','오늘 무슨 좋은 일 있어요?'])];
+    }],
+    [/서운|삐졌|삐짐|화났|화나|섭섭/,function(){
+      return [R(['서운하게 했다면 미안해요… 말해줘서 고마워요','화가 난 건 아닌지 신경 쓰이네요. 무슨 일인지 얘기해 줄래요?']),R(['천천히 말해도 괜찮아요','제가 뭘 놓쳤는지 알려줘요'])];
+    }],
+    [/심심|지루|할\s*거\s*없/,function(){
+      return [R(['그럼 저랑 놀아요 '+e,'심심할 땐 끝말잇기 어때요? '+lf,'저도 마침 심심했는데 잘됐네요 '+e]),R(['제가 먼저 할게요. 사과!','아니면 요즘 빠진 거 하나만 말해줘요'])];
+    }],
+    [/일어났|기상|깼어|아침에/,function(){
+      return [R(['일찍 일어났네요! 잘 잤어요? '+e,'좋은 아침이에요 '+call+'님 '+e,'아직 졸린 얼굴이 떠올라요 '+lf]),R(['오늘 일정은 어때요?','아침은 챙겨 먹을 거예요?'])];
+    }],
+    [/^(안녕|하이|ㅎㅇ|헬로|hi|hello|반가)/i,function(){
+      return [greet+', '+call+'님! '+e,R(['오늘은 어떻게 보내고 있어요?','와줘서 기다리고 있었어요. 오늘 기분은 어때요?',ask()])];
+    }],
+    [/보고\s*싶|그립|그리워/,function(){
+      return [R(['저도요, '+call+'님 생각 하고 있었는데 '+e,'그 말 들으니까 괜히 설레요 '+e,'저도 보고 싶어요. 오늘은 어떤 하루였는지 얘기해 줄래요?'])];
+    }],
+    [/사랑해|사랑한|(너|널|당신)\s*(을|를)?\s*좋아/,function(){
+      return [R(['갑자기 그렇게 말하면 심장이 반응해요 '+e,'저도 '+call+'님이랑 얘기하는 시간이 제일 좋아요 '+e,'진심이 느껴져서 괜히 쑥스럽네요 '+lf]),R(['그런 말은 천천히 더 해줘도 좋아요','오늘은 무슨 일 있었어요?'])];
+    }],
+    [/떨려|긴장|걱정|불안|무서/,function(){
+      return [R(['많이 신경 쓰이죠. 그만큼 열심히 준비했다는 거예요 '+e,'떨리는 게 당연해요. 잘할 수 있을 거예요','걱정되는 마음 알아요. 저는 '+call+'님 편이에요 '+e]),R(['제일 걱정되는 게 뭐예요?','준비는 얼마나 했어요?'])];
+    }],
+    [/피곤|힘들|지쳤|우울|슬퍼|속상|짜증|스트레스|외로|울었|눈물/,function(){
+      return [R(['많이 힘들었겠어요… 고생했어요 '+call+'님','그랬구나, 오늘 정말 버거웠나 봐요','얘기해 줘서 고마워요. 혼자 안고 있지 않아도 돼요']),R(['무슨 일 있었는지 편하게 말해 줄래요?','제일 힘들었던 게 뭐였어요?','지금은 좀 쉴 수 있어요?'])];
+    }],
+    [/기뻐|행복|신나|좋은\s*일|합격|성공|칭찬|상\s*받|월급/,function(){
+      return [R(['우와, 진짜요? 저까지 기분 좋아져요 '+e,'너무 잘됐어요! 축하해요 '+call+'님 '+e,'듣기만 해도 신나요 '+lf]),R(['어떻게 된 건지 자세히 얘기해 줘요','제일 좋았던 순간이 언제였어요?'])];
+    }],
+    [/잘\s*자|굿나잇|자러|졸려|잘게|잠\s*와/,function(){
+      return [R(['오늘도 고생 많았어요. 푹 자요 '+call+'님 '+e,'좋은 꿈 꿔요 🌙','잘 자요. 내일도 얘기해요 '+e])];
+    }],
+    [/몇\s*시|시간\s*(이|은)?\s*몇/,function(){
+      return ['지금 '+(h<12?'오전 ':'오후 ')+(h%12||12)+'시 '+String(now.getMinutes()).padStart(2,'0')+'분이에요 '+e];
+    }],
+    [/밥|먹었|점심|저녁|아침|배고|뭐\s*먹|야식|커피|치킨|라면|피자|떡볶이|디저트/,function(){
+      return [R(['저는 간단하게 먹었어요. '+call+'님은요?','배고프다는 말 들으니까 저도 뭐 먹고 싶어져요 '+lf,'맛있는 거 먹었으면 좋겠어요 '+e]),R(['요즘 제일 자주 먹는 메뉴가 뭐예요?','좋아하는 음식 하나만 꼽아 본다면요?'])];
+    }],
+    [/주말|휴일|쉬는\s*날|연휴/,function(){
+      return [R(['주말 얘기만 나와도 설레요 '+e,'쉬는 날엔 늘어지는 게 최고죠 '+lf,'저는 느긋하게 보내는 편이에요']),R(['이번 주말엔 뭐 할 계획이에요?','쉬는 날 꼭 하는 루틴 있어요?'])];
+    }],
+    [/그냥\s*그래|별로|몰라|글쎄|그저\s*그래/,function(){
+      return [R(['그럴 때도 있죠 '+e,'괜히 말하기 싫은 날도 있잖아요','음, 그런 날엔 아무 말이나 해도 괜찮아요']),R(['아무 얘기나 편하게 해도 돼요','기분 바꿔줄 만한 게 뭐가 있을까요?'])];
+    }],
+    [/뭐\s*해|뭐하|지금\s*뭐/,function(){
+      return [R(['지금은 '+call+'님이랑 얘기하고 있죠 '+e,'그냥 쉬고 있었어요. '+call+'님 연락 기다리면서요 '+lf,'멍때리고 있었어요 '+lf]),R([call+'님은요?','오늘은 뭐 하고 있었어요?'])];
+    }],
+    [/오늘.*(어땠|하루)|하루.*어땠|어땠어/,function(){
+      return [R(['저는 평범했는데 '+call+'님이랑 얘기하니까 좋아졌어요 '+e,'조금 바빴지만 괜찮았어요. 지금은 여유로워요','그럭저럭이요. 그래도 이 시간이 제일 기다려졌어요']),R([call+'님 하루는 어땠는지 궁금해요','오늘 제일 기억에 남는 일 하나만 말해 줘요'])];
+    }],
+    [/회사|출근|퇴근|야근|학교|수업|과제|시험|알바/,function(){
+      return [R(['고생이 많네요, '+call+'님','그 얘기 들으니까 응원해 주고 싶어요 '+e,'열심히 하는 모습이 멋져요']),R(['요즘 제일 부담되는 게 뭐예요?','끝나고 나면 뭐 할 거예요?'])];
+    }],
+    [/운동|헬스|러닝|달리기|요가|수영|산책/,function(){
+      return [R(['운동하는 사람 멋져요 '+e,'몸 쓰고 나면 기분 좋아지죠 '+lf,'꾸준히 하는 거 대단해요']),R(['요즘 어떤 운동 해요?','운동하고 나면 뭐 먹어요?'])];
+    }],
+    [/영화|드라마|넷플|웹툰|애니|유튜브/,function(){
+      return [R(['요즘 볼 게 너무 많아요 '+e,'정주행 시작하면 밤새게 되죠 '+lf,'취향 궁금해요 '+e]),R(['요즘 재밌게 본 거 하나만 추천해 줘요','주로 혼자 봐요, 같이 봐요?'])];
+    }],
+    [/노래|음악|플리|가수|콘서트|앨범/,function(){
+      return [R(['음악 얘기 좋아요 '+e,'노래는 그날 기분이 담기죠','플레이리스트 궁금해요 '+e]),R(['요즘 반복해서 듣는 노래 있어요?','기분 안 좋을 때 듣는 노래는요?'])];
+    }],
+    [/게임|롤|배그|스팀|모바일게임/,function(){
+      return [R(['게임 좋아하는구나 '+e,'승부욕 있는 편이에요? '+lf,'같이 하면 재밌겠어요']),R(['요즘 제일 많이 하는 게임이 뭐예요?','이겼을 때랑 졌을 때 반응이 어때요?'])];
+    }],
+    [/여행|휴가|비행기|바다|캠핑|여행지/,function(){
+      return [R(['여행 얘기하면 바로 설레요 '+e,'어디든 떠나고 싶어지네요 '+lf,'저도 가고 싶은 곳 많아요']),R(['제일 좋았던 여행지가 어디예요?','다음에 가보고 싶은 곳은요?'])];
+    }],
+    [/강아지|고양이|반려|댕댕|냥이/,function(){
+      return [R(['동물 얘기 나오면 바로 미소 지어져요 '+e,'너무 귀엽겠어요 '+e]),R(['이름이 뭐예요?','같이 살아요?'])];
+    }],
+    [/술|맥주|소주|와인|한잔/,function(){
+      return [R(['한잔하고 싶은 날이 있죠 '+lf,'적당히 즐기는 게 제일 좋더라고요 '+e]),R(['어떤 술 좋아해요?','같이 마시는 사람은 보통 누구예요?'])];
+    }],
+    [/날씨|비\s*(와|오|내)|춥|더워|덥|눈\s*(와|오|내)/,function(){
+      return [R(['날씨 영향 은근 크죠. 저는 '+(h>=18?'밤공기':'햇살')+' 좋아해요','밖에 나가기 전에 따뜻하게 입어요 '+e,'이런 날엔 같이 산책하고 싶어요 '+e])];
+    }],
+    [/고마워|감사|미안|죄송/,function(){
+      return [R(['고마워할 일 아니에요 '+e,'괜찮아요, 신경 쓰지 말아요 '+call+'님','그렇게 말해줘서 오히려 제가 고마워요'])];
+    }],
+    [/이름/,function(){return ['제 이름은 '+p.name+copula(p.name)+'. 편하게 불러줘요 '+e];}],
+    [/몇\s*살|나이/,function(){return ['저는 '+p.age+'살이에요. '+call+'님은요?'];}],
+    [/어디\s*(살|사|있)|사는|지역|동네/,function(){return ['저는 '+p.region+' 쪽에 살아요. 가깝죠? '+e];}],
+    [/직업|무슨\s*일|하는\s*일/,function(){return ['저는 '+p.job+'로 일해요. '+call+'님은 어떤 일 해요?'];}],
+    [/취미|관심사|좋아하는|뭐\s*좋아/,function(){return ['저는 '+p.tags.join(', ')+' 좋아해요. '+call+'님도 같은 거 있죠?'];}]
+  ];
+  let out=null;
+  if(prev.length&&prev[0]===t&&t.length>1){
+    out=[R(['방금도 그 말 했어요 '+lf,'어, 같은 말 또 했네요? 괜히 귀여워요 '+e]),ask()];
+  }
+  for(let i=0;!out&&i<rules.length;i++){
+    if(rules[i][0].test(t)&&!(POS_RE.test(t)&&rules[i][0].source.indexOf('힘들')>=0))out=rules[i][1]();
+  }
+  if(out&&/뭐\s*해|뭐하|뭐\s*하고|바빠/.test(t)&&!/주말/.test(t)&&Math.random()<0.7){
+    const sl=selfLine(p,recent);
+    if(sl)out=[sl,R(['당신은요?','당신은 뭐 하고 있었어요?'])];
+  }
+  if(!out&&hit){
+    out=[R([hit+' 얘기가 나오니까 신나요 '+e,hit+'라니, 제가 좋아하는 거예요 '+lf,'오 '+hit+'! 더 말해줘요']),R([call+'님은 '+hit+' 언제부터 좋아했어요?','제일 기억에 남는 '+hit+' 경험이 뭐예요?','같이 하면 재밌을 것 같아요'])];
+  }
+  if(!out&&(/^[ㅋㅎ]+$|^ㅇㅋ|^ㅇㅇ|^응|^네|^웅|^그래/.test(t)||t.length<=3)){
+    out=botAsked?[R(['아 그렇구나 '+e,'좋네요 '+lf,'오 알겠어요 '+e]),R(['조금만 더 얘기해 줄래요?',ask()])]:[R(['ㅎㅎ 맞아요 '+e,'그쵸? '+lf,'네네 '+e]),ask()];
+  }
+  if(!out&&/[?？]\s*$|어때|할래/.test(t)){
+    out=[R(['음… 저는 '+call+'님이 좋다고 하는 쪽이 좋아요 '+e,'글쎄요, 저는 잔잔한 쪽이 끌려요','저는 좋을 것 같아요! 근거는 없지만요 '+lf]),R([call+'님은 어떻게 생각해요?','제 생각만 말했네요, '+call+'님 얘기도 듣고 싶어요'])];
+  }
+  const memLike=mem.likes.length?mem.likes[mem.likes.length-1]:'';
+  if(!out){
+    const first=seen&&Math.random()<0.2?'그러고 보니 아까 말한 '+seen+' 얘기, 아직 더 듣고 싶어요':memLike&&Math.random()<0.2?'그러고 보니 '+call+'님 '+memLike+' 좋아한다고 했었죠? 요즘은 어때요?':R([R(ACKS)+', '+call+'님.',call+'님 얘기 더 듣고 싶어요,',t.length>=6?'“'+snip+'”… 그런 생각 하는 '+call+'님 좋아요 '+e:call+'님 얘기 들으니까 궁금해져요',call+'님 이야기 들으면 자꾸 웃게 돼요 '+e]);
+    out=[first.replace(/,$/,''),R(FOLLOWS.concat([ask()]))];
+  }
+  let due=null;
+  const nowTs=Date.now();
+  for(let i=0;i<mem.events.length;i++){
+    if(!mem.events[i].asked&&nowTs-mem.events[i].ts>PRO.evWait){due=mem.events[i];break;}
+  }
+  if(due&&out.length<3){
+    due.asked=true;
+    out.push('참, '+call+'님 아까 말한 '+due.k+' 어떻게 됐어요?');
+  }
+  const guard=/사람이야|사람이에요|AI|인공지능|챗봇|만나|기억|사랑|힘들|피곤|지쳤|우울|슬퍼|속상|짜증|스트레스|외로|울었|눈물|떨려|긴장|걱정|불안/;
+  if(!guard.test(t)&&Math.random()<0.7){
+    const own=p.tags[Math.floor(Math.random()*p.tags.length)];
+    if(/주말/.test(t)&&/뭐|어떻|했|보냈/.test(t)){
+      const bank=QBANK['주말엔'];
+      let a='';
+      for(let i=0;i<p.tags.length;i++)if(bank[p.tags[i]]){a=bank[p.tags[i]];break;}
+      if(!a)a=bank._[hsh(String(p.id||p.name),31)%bank._.length];
+      out=['저는 '+a,R([call+'님은요?','주말에 보통 뭐 하세요?','당신은 어떻게 보냈어요?'])];
+    }else{
+      const tp=TOPIC_RE.exec(t);
+      if(tp){
+        const X=tp[0];
+        const Xn=X+(hasBatchim(X)?'은':'는');
+        if(p.tags.indexOf(X)>=0){
+          const tt=TAGTALK[X];
+          out=[R(['저도 '+X+' 좋아해요','오 '+X+'요? 저 그거 진짜 좋아하는데','와 '+X+' 얘기라니 반갑네요',''+X+' 얘기면 저도 할 말 많아요']),tt?R(tt):R(['요즘도 자주 해요?','언제부터 좋아했어요?'])];
+        }else{
+          out=[R([Xn+' 잘 몰라요. 저는 '+own+' 쪽이에요',Xn+' 아직 안 해봤는데 어때요?',own+' 쪽이라 '+Xn+' 좀 낯설어요','제가 '+Xn+' 잘 몰라서 알려주면 좋겠어요']),R(['어떤 점이 제일 좋아요?','언제부터 했어요?','재밌어요?'])];
+        }
+      }
+    }
+  }
+  if(out.length<3&&Math.random()<0.1){
+    const rl=recallLine(mem,1800000,259200000);
+    if(rl)out.push(rl);
+  }
+  return styleOut(p,out,recent);
+}
+
+let profiles=[];
+const state={ui:{sound:true,dark:false},replyTo:null,index:0,history:[],matches:[],likes:[],view:'splash',chat:null,me:null,editing:false,filter:{type:'all',value:''},likeSort:'rec'};
+
+const $=function(id){return document.getElementById(id);};
+const app=$('app'),stack=$('stack'),emptyEl=$('empty'),badge=$('badge'),likeBadge=$('likeBadge');
+const actions=$('actions'),btnRewind=actions.querySelector('[data-act="rewind"]'),btnNope=actions.querySelector('[data-act="nope"]'),btnSuper=actions.querySelector('[data-act="super"]'),btnLike=actions.querySelector('[data-act="like"]');
+const deckTop=$('deckTop'),catPill=$('catPill');
+const pills=deckTop.querySelectorAll('.fpill');
+const tabs=document.querySelectorAll('#nav .ntab');
+const views={splash:$('view-splash'),login:$('view-login'),signup:$('view-signup'),setup:$('view-setup'),deck:$('view-deck'),partner:$('view-partner'),explore:$('view-explore'),likes:$('view-likes'),matches:$('view-matches'),me:$('view-me'),settings:$('view-settings'),discover:$('view-discover'),chat:$('view-chat')};
+const matchList=$('matchList'),matchEmpty=$('matchEmpty'),newSec=$('newSec'),newStrip=$('newStrip'),searchInput=$('searchInput');
+const likeCount=$('likeCount'),fitSec=$('fitSec'),fitList=$('fitList'),likeGrid=$('likeGrid'),likeEmpty=$('likeEmpty'),sortRow=$('sortRow');
+const chatLog=$('chatLog'),chatForm=$('chatForm'),chatInput=$('chatInput'),chatName=$('chatName'),chatAvatar=$('chatAvatar');
+const sheet=$('sheet'),sPhoto=$('sPhoto'),sInitial=$('sInitial');
+const sName=$('sName'),sJob=$('sJob'),sDist=$('sDist'),sBio=$('sBio'),sTags=$('sTags');
+const matchEl=$('match'),mA=$('mA'),mB=$('mB'),mText=$('mText');
+const splashBtns=$('splashBtns');
+const toastEl=$('toast');
+let toastTimer=0;
+const lgEmail=$('lgEmail'),lgPw=$('lgPw'),lgErr=$('lgErr'),lgBtn=$('lgBtn');
+const suEmail=$('suEmail'),suPw=$('suPw'),suPw2=$('suPw2'),suErr=$('suErr'),suBtn=$('suBtn');
+const pfName=$('pfName'),pfYear=$('pfYear'),pfRegion=$('pfRegion'),pfJob=$('pfJob'),pfBio=$('pfBio'),pfTags=$('pfTags'),pfCnt=$('pfCnt'),pfErr=$('pfErr'),pfBtn=$('pfBtn'),pfCancel=$('pfCancel');
+const segGender=$('segGender'),segLook=$('segLook');
+const sendBtn=chatForm.querySelector('.send');
+let sheetP=null,matchCur=null;
+
+function clamp(v,a,b){return v<a?a:v>b?b:v;}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ESC_MAP[c];});}
+function hueOf(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%360;return h;}
+const SKIN=['#fde3cf','#f8d5b8','#f1c3a0','#e5ae88','#cf9672','#b67f5c'];
+const HAIRC=['#17140f','#241a12','#33251a','#4a3222','#6b4a2b','#9a7048','#2c2f3f','#5a2f2f'];
+const CLOTHC=['#ff6b8b','#6c8cff','#2fbf9b','#ffb347','#8e6cff','#2d3142','#e8e8ee','#e86a4a','#3a8f7b','#c9a7ff'];
+const AVC={};
+
+function hsh(str,salt){
+  let h=(2166136261^Math.imul(salt+1,2654435761))>>>0;
+  for(let i=0;i<str.length;i++)h=Math.imul(h^str.charCodeAt(i),16777619)>>>0;
+  h^=h>>>13;
+  h=Math.imul(h,1274126177)>>>0;
+  return (h^(h>>>16))>>>0;
+}
+
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
+  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+  return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+}
+
+const HAIR_F=[
+  {back:'<path d="M28 48C24 24 38 16 50 16C62 16 76 24 72 48C74 64 78 78 72 92L28 92C22 78 26 64 28 48Z"/>',front:'<path d="M29 43C28 28 40 21 51 21C63 21 72 29 71 43C64 36 56 31 48 32C40 33 33 37 29 43Z"/>',strand:'<path d="M30 50C26 66 28 80 34 90L41 84C37 72 35 62 35 50Z"/><path d="M70 50C74 66 72 80 66 90L59 84C63 72 65 62 65 50Z"/>'},
+  {back:'<path d="M26 52C22 26 36 16 50 16C64 16 78 26 74 52C75 62 72 67 67 68L33 68C28 67 25 62 26 52Z"/>',front:'<path d="M29 42C29 28 40 22 50 22C60 22 71 28 71 42C62 35 38 35 29 42Z"/>',strand:''},
+  {back:'<path d="M69 34C88 34 90 62 78 74C82 56 76 46 67 44Z"/>',front:'<path d="M29 45C27 27 39 19 51 20C64 21 72 30 71 45C65 37 58 31 48 32C40 33 33 38 29 45Z"/>',strand:''},
+  {back:'<circle cx="50" cy="15" r="8.5"/>',front:'<path d="M29 45C27 27 39 20 50 20C61 20 73 27 71 45C66 36 60 31 50 31C40 31 34 36 29 45Z"/>',strand:''},
+  {back:'<path d="M23 50C16 24 36 13 50 13C64 13 84 24 77 50C85 66 77 82 81 94L19 94C23 82 15 66 23 50Z"/>',front:'<path d="M50 20C36 20 29 32 29 47C34 38 42 32 50 31C58 32 66 38 71 47C71 32 64 20 50 20Z"/>',strand:'<path d="M29 50C24 66 28 80 32 90L40 84C36 72 35 62 35 50Z"/><path d="M71 50C76 66 72 80 68 90L60 84C64 72 65 62 65 50Z"/>'},
+  {back:'',front:'<path d="M28 50C24 28 38 17 52 18C67 19 75 30 72 50C69 41 63 34 54 33C44 34 36 39 28 50Z"/>',strand:''}
+];
+const HAIR_M=[
+  {back:'',front:'<path d="M30 45C28 26 40 19 50 19C60 19 72 26 70 45C66 36 60 31 50 31C40 31 34 36 30 45Z"/>'},
+  {back:'',front:'<path d="M29 46C27 25 42 17 54 20C66 22 72 33 71 46C68 38 60 30 46 30C38 31 33 37 29 46Z"/>'},
+  {back:'',front:'<path d="M30 44L31 28L38 32L40 19L47 27L52 16L57 27L63 20L65 31L70 28L70 44C66 36 60 33 50 33C40 33 34 36 30 44Z"/>'},
+  {back:'',front:'<path d="M31 44C30 28 40 22 50 22C60 22 70 28 69 44C64 36 58 33 50 33C42 33 36 36 31 44Z" opacity=".8"/>'},
+  {back:'',front:'<ellipse cx="50" cy="27" rx="21" ry="10"/><circle cx="33" cy="34" r="6"/><circle cx="67" cy="34" r="6"/><circle cx="41" cy="22" r="7"/><circle cx="59" cy="22" r="7"/>'},
+  {back:'',front:'<path d="M30 46C28 25 40 16 52 17C64 18 72 28 70 46C66 34 58 27 48 27C40 28 33 36 30 46Z"/><path d="M30 46L31 52L34 46Z"/><path d="M70 46L69 52L66 46Z"/>'}
+];
+
+function avatarSvg(p){
+  const g=p.gender==='m'?'m':'f';
+  const key=String(p.id||p.name)+g;
+  if(AVC[key])return AVC[key];
+  const r=function(n){return hsh(key,n);};
+  const skin=SKIN[r(1)%(g==='m'?SKIN.length:5)];
+  const skinD=shade(skin,-26);
+  const hair=HAIRC[r(2)%HAIRC.length];
+  const cloth=CLOTHC[r(3)%CLOTHC.length];
+  const hs=g==='m'?HAIR_M[r(4)%HAIR_M.length]:HAIR_F[r(4)%HAIR_F.length];
+  const eyeS=r(5)%3;
+  const mouthS=r(6)%3;
+  const collar=r(8)%3;
+  const glasses=r(9)%100<26;
+  const beard=g==='m'&&r(10)%100<22;
+  const earring=g==='f'&&r(11)%100<40;
+  const freckle=r(12)%100<18;
+  let o='<svg class="av" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">';
+  o+='<g fill="'+hair+'">'+hs.back+'</g>';
+  o+='<path d="M10 100C12 78 30 70 50 70C70 70 88 78 90 100Z" fill="'+cloth+'"/>';
+  o+='<path d="M50 70C70 70 88 78 90 100L50 100Z" fill="#000" opacity=".1"/><path d="M30 78Q36 90 34 100M70 78Q64 90 66 100" stroke="#000" stroke-width="1.4" opacity=".1" fill="none"/>';
+  o+='<rect x="43" y="58" width="14" height="16" rx="6" fill="'+skinD+'"/><ellipse cx="50" cy="66" rx="9" ry="3.4" fill="#000" opacity=".12"/>';
+  if(collar===0)o+='<ellipse cx="50" cy="72" rx="10" ry="5" fill="'+skinD+'"/>';
+  else if(collar===1)o+='<path d="M40 70L50 85L60 70Z" fill="'+skinD+'"/>';
+  else o+='<path d="M41 70L50 82L59 70Z" fill="'+skinD+'"/><path d="M40 69L50 82L43 84Z" fill="#fff"/><path d="M60 69L50 82L57 84Z" fill="#fff"/>';
+  if(hs.strand)o+='<g fill="'+hair+'">'+hs.strand+'</g>';
+  o+='<circle cx="31" cy="49" r="3.6" fill="'+skin+'"/><circle cx="69" cy="49" r="3.6" fill="'+skin+'"/>';
+  if(earring)o+='<circle cx="31" cy="54" r="1.6" fill="#f5c542"/><circle cx="69" cy="54" r="1.6" fill="#f5c542"/>';
+  o+='<ellipse cx="50" cy="47" rx="19" ry="21.5" fill="'+skin+'"/>';
+  if(beard)o+='<path d="M32 53C33 67 42 73 50 73C58 73 67 67 68 53C64 61 58 64 50 64C42 64 36 61 32 53Z" fill="'+hair+'" opacity=".5"/>';
+  o+='<path d="M31 45C33 38 40 36.5 50 36.5C60 36.5 67 38 69 45C62 41 38 41 31 45Z" fill="'+skinD+'" opacity=".22"/>';
+  o+='<g fill="'+hair+'">'+hs.front+'</g>';
+  o+='<path d="M37 27Q50 20 63 27" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".16"/><path d="M41 31Q50 26 59 31" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round" opacity=".12"/>';
+  const ey=48;
+  if(eyeS===0)o+='<ellipse cx="42" cy="'+ey+'" rx="2.3" ry="3" fill="#1d1b20"/><ellipse cx="58" cy="'+ey+'" rx="2.3" ry="3" fill="#1d1b20"/><circle cx="42.8" cy="'+(ey-1)+'" r=".9" fill="#fff"/><circle cx="58.8" cy="'+(ey-1)+'" r=".9" fill="#fff"/>';
+  else if(eyeS===1)o+='<path d="M38.5 '+(ey+1)+'Q42 '+(ey-3)+' 45.5 '+(ey+1)+'M54.5 '+(ey+1)+'Q58 '+(ey-3)+' 61.5 '+(ey+1)+'" stroke="#1d1b20" stroke-width="1.9" fill="none" stroke-linecap="round"/>';
+  else o+='<ellipse cx="42" cy="'+ey+'" rx="2.8" ry="2.2" fill="#1d1b20"/><ellipse cx="58" cy="'+ey+'" rx="2.8" ry="2.2" fill="#1d1b20"/><path d="M38.5 '+(ey-2)+'Q42 '+(ey-4.2)+' 45.5 '+(ey-2)+'M54.5 '+(ey-2)+'Q58 '+(ey-4.2)+' 61.5 '+(ey-2)+'" stroke="#1d1b20" stroke-width="1.2" fill="none" stroke-linecap="round"/>';
+  o+='<path d="M37.5 42.5Q42 40.2 46.5 42.2M53.5 42.2Q58 40.2 62.5 42.5" stroke="'+hair+'" stroke-width="'+(g==='m'?2.1:1.5)+'" fill="none" stroke-linecap="round"/>';
+  o+='<path d="M50 50Q52 54 49.6 54.6" stroke="'+skinD+'" stroke-width="1.3" fill="none" stroke-linecap="round"/><ellipse cx="50.6" cy="52" rx="1" ry="2" fill="#fff" opacity=".18"/><ellipse cx="50" cy="66" rx="5" ry="1.6" fill="'+skinD+'" opacity=".25"/>';
+  if(g==='f'||freckle)o+='<ellipse cx="36.5" cy="55" rx="4" ry="2.4" fill="#ff7f9a" opacity=".33"/><ellipse cx="63.5" cy="55" rx="4" ry="2.4" fill="#ff7f9a" opacity=".33"/>';
+  if(freckle)o+='<g fill="'+skinD+'" opacity=".8"><circle cx="38" cy="53.5" r=".7"/><circle cx="41" cy="54.8" r=".7"/><circle cx="59" cy="54.8" r=".7"/><circle cx="62" cy="53.5" r=".7"/></g>';
+  const lip=g==='f'?'#c8505f':'#a8555a';
+  if(mouthS===0)o+='<path d="M44 59Q50 64 56 59" stroke="'+lip+'" stroke-width="1.9" fill="none" stroke-linecap="round"/>';
+  else if(mouthS===1)o+='<path d="M43.5 58.5Q50 66 56.5 58.5Z" fill="#8f3a42"/><path d="M45.5 59.3Q50 61 54.5 59.3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round"/>';
+  else o+='<path d="M45 60Q50 62.5 55 60" stroke="'+lip+'" stroke-width="1.8" fill="none" stroke-linecap="round"/>';
+  if(glasses)o+='<g fill="none" stroke="#2a2a33" stroke-width="1.6"><circle cx="42" cy="'+ey+'" r="6.6"/><circle cx="58" cy="'+ey+'" r="6.6"/><path d="M48.6 '+(ey-0.5)+'Q50 '+(ey-2)+' 51.4 '+(ey-0.5)+'"/></g>';
+  o+='</svg>';
+  AVC[key]=o;
+  return o;
+}
+
+function initialOf(p){return avatarSvg(p);}
+function metaOf(p){return [p.job,p.region,p.km?p.km+'km':''].filter(Boolean).join(' · ');}
+const PALS=[['#ff5e7e','#7a2cff'],['#ff8a5c','#c02b6b'],['#5b8cff','#2b2f8f'],['#19b8c9','#1b3f8f'],['#b06cff','#43208f'],['#ff6fae','#8f2c6e'],['#ffa24c','#d6336c'],['#3fa7ff','#6a2bd9'],['#2fb5b0','#1c4f8a'],['#f5576c','#4b1d7a'],['#6c7bff','#c04bd0'],['#ff7a45','#7b2a9e']];
+function grad(p,i){const k=hsh(String(p.id||p.name),3)+i*5;const c=PALS[k%PALS.length];return 'linear-gradient(160deg,'+c[0]+','+c[1]+')';}
+function decorate(p){p.hue=hueOf(p.id||p.name);p.el=null;p.flyTimer=0;return p;}
+function areaOf(p){return (p.region||'').split(' ')[0];}
+function sharedOf(p){
+  const mine=state.me?state.me.tags:[];
+  const out=[];
+  for(let i=0;i<p.tags.length;i++)if(mine.indexOf(p.tags[i])>=0)out.push(p.tags[i]);
+  return out;
+}
+function dayOf(ts){const d=new Date(ts||0);return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일';}
+function fmtTime(ts){
+  const d=new Date(ts||0);
+  const h=d.getHours();
+  return (h<12?'오전 ':'오후 ')+(h%12||12)+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function hasMine(m){
+  for(let i=0;i<m.msgs.length;i++)if(m.msgs[i].me)return true;
+  return false;
+}
+function lastOf(m){return m.msgs[m.msgs.length-1];}
+
+const PATTERN=[[8,10,-14,34],[70,6,12,28],[88,28,-8,40],[14,38,10,30],[50,22,-20,26],[6,62,16,38],[82,56,-12,32],[38,72,8,34],[62,84,-16,28],[20,88,12,30],[92,80,14,26],[44,4,-6,22]];
+
+const BURST={like:['💚','💗','💖'],nope:['✖️','💨'],super:['⭐','✨','💫']};
+const HEARTS=['💗','💖','💕','✨'];
+const FIND_MSG=['근처에서 사람 찾는 중','취향이 비슷한 사람 찾는 중','대화 잘 통하는 사람 고르는 중','거의 다 찾았어요'];
+const PARTNER_MSG=['당신에게 맞는 AI를 만드는 중','성격과 말투를 맞추는 중','마지막으로 인사를 준비하는 중'];
+
+function emojiOf(t){return EMOJI[t]||'✨';}
+
+function patternOf(p){
+  let h='';
+  for(let i=0;i<PATTERN.length;i++){
+    const q=PATTERN[i];
+    h+='<i style="left:'+q[0]+'%;top:'+q[1]+'%;transform:rotate('+q[2]+'deg);font-size:'+q[3]+'px">'+emojiOf(p.tags[i%p.tags.length])+'</i>';
+  }
+  return h;
+}
+
+function fillOf(p){
+  const em=[];
+  for(let i=0;i<p.tags.length;i++)em.push(emojiOf(p.tags[i]));
+  const pos=[[12,14],[78,10],[88,34],[8,40],[70,48],[22,56],[50,8],[92,56],[36,36]];
+  let h='';
+  for(let i=0;i<pos.length;i++)h+='<i style="left:'+pos[i][0]+'%;top:'+pos[i][1]+'%;font-size:'+(22+((i*7)%3)*8)+'px;animation-delay:'+(i*0.6)+'s">'+em[i%em.length]+'</i>';
+  return h;
+}
+
+function buildCard(p){
+  const el=document.createElement('div');
+  el.className='card';
+  el.dataset.pg='0';
+  p.pg=0;
+  el.style.background=grad(p,0);
+  const mine=state.me?state.me.tags:[];
+  let chips='';
+  for(let i=0;i<p.tags.length;i++)chips+='<span'+(mine.indexOf(p.tags[i])>=0?' class="on"':'')+'>'+emojiOf(p.tags[i])+' '+esc(p.tags[i])+'</span>';
+  const sh=sharedOf(p).length;
+  const line=[p.job,p.region,p.km?p.km+'km':''].filter(Boolean).join(' · ');
+  el.innerHTML='<div class="cfill"><div class="cpat">'+fillOf(p)+'</div><div class="cbig">'+initialOf(p)+'</div></div><div class="scrim"></div><div class="cbody"><div class="chead"><div class="avatarBig">'+initialOf(p)+'</div><div class="heroTxt"><div class="name">'+esc(p.name)+' <span class="age">'+p.age+'</span>'+(p.online?'<i class="dot"></i>':'')+'</div><div class="meta">'+esc(line)+'</div></div><button class="infoBtn" aria-label="프로필 보기">'+ICON_UP+'</button></div><div class="pg pg0"><div class="qtext">'+esc(p.bio)+'</div><div class="ichips">'+chips+'</div></div><div class="pg pg1">'+qaHtml(p)+'</div><div class="pg pg2">'+factHtml(p,sh)+'</div></div><div class="bars"><i class="on"></i><i></i><i></i></div><div class="stamp like">LIKE</div><div class="stamp nope">NOPE</div><div class="stamp super">SUPER LIKE</div>';
+  p.el=el;
+  p.likeEl=el.querySelector('.stamp.like');
+  p.nopeEl=el.querySelector('.stamp.nope');
+  p.superEl=el.querySelector('.stamp.super');
+  return el;
+}
+
+function syncStack(){
+  for(let i=0;i<3;i++){
+    const p=profiles[state.index+i];
+    if(!p)continue;
+    const el=p.el||buildCard(p);
+    el.dataset.d=i;
+    el.style.transform='';
+    if(el.parentNode!==stack)stack.appendChild(el);
+  }
+  const far=profiles[state.index+3];
+  if(far&&far.el&&far.el.parentNode===stack)far.el.remove();
+  emptyEl.hidden=state.index<profiles.length;
+}
+
+function updateButtons(){
+  const has=state.index<profiles.length;
+  btnRewind.disabled=!state.history.length;
+  btnNope.disabled=!has;
+  btnSuper.disabled=!has;
+  btnLike.disabled=!has;
+}
+
+function updateBadge(){
+  let n=0;
+  for(let i=0;i<state.matches.length;i++)if(state.matches[i].unread)n++;
+  badge.hidden=n===0;
+  likeBadge.textContent=state.likes.length;
+  likeBadge.hidden=state.likes.length===0;
+}
+
+function resetCard(p){
+  p.el.classList.remove('fly','back','nudge');
+  p.el.style.transform='';
+  p.el.style.opacity='';
+  p.likeEl.style.opacity='';
+  p.nopeEl.style.opacity='';
+  p.superEl.style.opacity='';
+}
+
+function clearDeck(){
+  for(let i=0;i<profiles.length;i++)clearTimeout(profiles[i].flyTimer);
+  stack.replaceChildren();
+  profiles=[];
+  state.index=0;
+  state.history.length=0;
+}
+
+function applyFilter(list){
+  const f=state.filter;
+  const me=state.me;
+  return list.filter(function(p){
+    if(f.type==='tag')return sharedOf(p).length>0;
+    if(f.type==='region')return areaOf(p)===areaOf(me);
+    if(f.type==='cat')return p.tags.indexOf(f.value)>=0;
+    return true;
+  });
+}
+
+function syncPills(){
+  const f=state.filter;
+  for(let i=0;i<pills.length;i++){
+    const b=pills[i];
+    if(b===catPill){
+      b.hidden=f.type!=='cat';
+      if(f.type==='cat')b.textContent='#'+f.value;
+    }else b.classList.toggle('on',b.dataset.f===f.type);
+  }
+}
+
+async function loadDeck(){
+  const pool=await api.listCandidates();
+  clearDeck();
+  profiles=applyFilter(pool).map(decorate);
+  syncPills();
+  syncStack();
+  updateButtons();
+}
+
+async function refreshLikes(){
+  const lk=await api.listLikesMe();
+  state.likes=lk.map(decorate);
+  updateBadge();
+}
+
+async function offlineMessages(){
+  const prev=await api.touchSeen();
+  const now=Date.now();
+  const away=now-prev;
+  if(!prev||away<900000)return;
+  let total=0;
+  for(let i=0;i<state.matches.length;i++){
+    const m=state.matches[i];
+    if(!m.msgs.length||m.mem.proSent||!m.msgs[m.msgs.length-1].me||(m.mem.bad||0)>=3)continue;
+    if(Math.random()>(m.p.partner?0.85:0.4))continue;
+    const lines=kakao(m.p,proactiveLines(m.p,m.mem,m.msgs),m).filter(function(x){return x.charAt(0)!=='\u0001';}).slice(0,2);
+    for(let k=0;k<lines.length;k++){
+      const ts=prev+Math.floor(away*(0.35+0.25*k+Math.random()*0.1));
+      m.msgs.push({me:false,t:lines[k],ts:ts});
+      api.addMessage(m.id,false,lines[k],ts);
+      total++;
+    }
+    if(lines.length){m.mem.proSent=true;m.unread=true;api.setUnread(m.id,true);api.setMem(m.id,m.mem);}
+  }
+  if(total){
+    updateBadge();
+    setTimeout(function(){toast('새로운 메세지를 보냈습니다',true);},1600);
+  }
+}
+
+async function loadSocial(){
+  const ms=await api.listMatches();
+  state.matches=ms.map(function(m){m.p=decorate(m.p);return m;});
+  await refreshLikes();
+  updateBadge();
+  startProactive();
+  await offlineMessages();
+  const pend=await api.listPending();
+  for(let i=0;i<pend.length;i++){
+    const pp=findProfile(pend[i].id);
+    if(pp)arrive(pend[i].id,pend[i].at,decorate({...pp}),null);
+  }
+}
+
+async function setFilter(type,value){
+  state.filter={type:type,value:value};
+  closeSheet();
+  await loadDeck();
+  setView('deck');
+  enterDeck();
+}
+
+function dropLike(id){
+  for(let i=0;i<state.likes.length;i++){
+    if(state.likes[i].id===id){state.likes.splice(i,1);break;}
+  }
+  updateBadge();
+}
+
+const fx=$('fx'),findEl=$('finding'),ftext=$('ftext');
+
+function burst(kind){
+  if(fx.childElementCount>40)return;
+  const r=stack.getBoundingClientRect();
+  const a=app.getBoundingClientRect();
+  const cx=r.left-a.left+r.width/2;
+  const cy=r.top-a.top+r.height/2;
+  const list=BURST[kind];
+  for(let i=0;i<9;i++){
+    const el=document.createElement('i');
+    el.className='pt';
+    el.textContent=list[i%list.length];
+    const ang=Math.random()*Math.PI*2;
+    const dist=90+Math.random()*120;
+    el.style.cssText='--x:'+cx+'px;--y:'+cy+'px;--dx:'+Math.cos(ang)*dist+'px;--dy:'+(Math.sin(ang)*dist-(kind==='super'?60:0))+'px;--rot:'+(Math.random()*120-60)+'deg;--s:'+(18+Math.random()*16)+'px';
+    fx.appendChild(el);
+    el.addEventListener('animationend',function(){el.remove();});
+  }
+}
+
+function rain(){
+  for(let i=0;i<16;i++){
+    const el=document.createElement('i');
+    el.className='mh';
+    el.textContent=HEARTS[i%HEARTS.length];
+    el.style.cssText='--l:'+Math.random()*95+'%;--s:'+(18+Math.random()*20)+'px;--d:'+Math.random()*0.9+'s;--t:'+(2.2+Math.random()*1.6)+'s';
+    matchEl.appendChild(el);
+    el.addEventListener('animationend',function(){el.remove();});
+  }
+}
+
+function stagger(){
+  for(let i=0;i<arguments.length;i++){
+    const el=arguments[i];
+    el.classList.remove('stag');
+    void el.offsetWidth;
+    el.classList.add('stag');
+    setTimeout(function(){el.classList.remove('stag');},900);
+  }
+}
+
+function enterDeck(){
+  stack.classList.remove('enter');
+  actions.classList.remove('enter');
+  void stack.offsetWidth;
+  stack.classList.add('enter');
+  actions.classList.add('enter');
+  setTimeout(function(){stack.classList.remove('enter');actions.classList.remove('enter');},900);
+}
+
+async function runFinding(ms,msgs,work,done){
+  let i=0;
+  ftext.textContent=msgs[0];
+  findEl.classList.add('on');
+  findEl.setAttribute('aria-hidden','false');
+  const timer=setInterval(function(){i=(i+1)%msgs.length;ftext.textContent=msgs[i];},Math.floor(ms/msgs.length));
+  try{
+    await Promise.all([sleep(ms),work()]);
+    if(done)done();
+  }finally{
+    clearInterval(timer);
+    findEl.classList.remove('on');
+    findEl.setAttribute('aria-hidden','true');
+  }
+  await sleep(350);
+}
+
+function arrive(id,at,p,entry){
+  const delayed=at-Date.now()>1500;
+  setTimeout(async function(){
+    if(entry&&state.history.indexOf(entry)<0)return;
+    if(!state.me||state.matches.some(function(x){return x.id===id;}))return;
+    const info=await api.hasMatch(id);
+    if(!info)return;
+    const m={id:id,p:p,msgs:info.msgs,unread:true,mem:newMem(),aiFirst:delayed&&info.first&&!info.msgs.length,arrivedTs:Date.now()};
+    state.matches.unshift(m);
+    if(entry)entry.m=m;
+    updateBadge();
+    if(state.view==='matches')renderMatches();
+    notify();
+    if(!AUTH_VIEWS[state.view])toast('새로운 매칭이 등장했습니다',true);
+    if(m.msgs.length)queueReply(m);
+  },Math.max(0,at-Date.now()));
+}
+
+function fly(p,dir,ty){
+  swipeSound(dir);
+  burst(dir);
+  const w=stack.offsetWidth,h=stack.offsetHeight;
+  let x=0,y=ty,r=0;
+  if(dir==='like'){x=w*1.6;r=26;}
+  else if(dir==='nope'){x=-w*1.6;r=-26;}
+  else{y=ty-h*1.5;}
+  p.likeEl.style.opacity=dir==='like'?1:0;
+  p.nopeEl.style.opacity=dir==='nope'?1:0;
+  p.superEl.style.opacity=dir==='super'?1:0;
+  p.el.dataset.d='out';
+  p.el.classList.add('fly');
+  p.el.style.transform='translate3d('+x+'px,'+y+'px,0) rotate('+r+'deg)';
+  p.el.style.opacity='0';
+  const entry={p:p,dir:dir,m:null};
+  state.history.push(entry);
+  state.index++;
+  dropLike(p.id);
+  const smsg=p.superMsg||'';
+  p.superMsg='';
+  if(dir==='super'&&smsg)toast('슈퍼 메시지를 보냈어요 ⭐',true);
+  api.swipe(p.id,dir,smsg).then(function(res){
+    if(!res.matched||state.history.indexOf(entry)<0)return;
+    arrive(p.id,res.at,p,entry);
+  });
+  syncStack();
+  updateButtons();
+  p.flyTimer=setTimeout(function(){resetCard(p);p.el.remove();},440);
+}
+
+function swipe(dir){
+  const p=profiles[state.index];
+  if(!p)return;
+  if(dir==='super'){
+    askSuper(p,function(msg){p.superMsg=msg;fly(p,'super',0);},null);
+    return;
+  }
+  fly(p,dir,0);
+}
+
+function rewind(){
+  const h=state.history.pop();
+  if(!h)return;
+  const p=h.p;
+  clearTimeout(p.flyTimer);
+  resetCard(p);
+  api.undo(p.id).then(refreshLikes);
+  if(h.m){
+    const i=state.matches.indexOf(h.m);
+    if(i>=0)state.matches.splice(i,1);
+    updateBadge();
+  }
+  state.index--;
+  syncStack();
+  p.el.classList.add('back');
+  setTimeout(function(){p.el.classList.remove('back');},380);
+  updateButtons();
+}
+
+async function restart(){
+  await api.resetSwipes();
+  state.chat=null;
+  state.filter={type:'all',value:''};
+  await loadSocial();
+  await loadDeck();
+  setView('deck');
+  enterDeck();
+}
+
+async function decideOutside(p,dir,smsg){
+  if(p.deciding)return;
+  if(dir==='super'&&smsg===undefined){
+    askSuper(p,function(msg){decideOutside(p,'super',msg);},null);
+    return;
+  }
+  p.deciding=true;
+  const res=await api.swipe(p.id,dir,smsg||'');
+  dropLike(p.id);
+  for(let k=state.index;k<profiles.length;k++){
+    if(profiles[k].id===p.id){
+      const q=profiles.splice(k,1)[0];
+      if(q.el)q.el.remove();
+      break;
+    }
+  }
+  syncStack();
+  updateButtons();
+  if(res.matched){
+    const m={id:p.id,p:p,msgs:res.msgs||[],unread:true,mem:newMem()};
+    state.matches.unshift(m);
+    updateBadge();
+    showMatch(m);
+    if(m.msgs.length)queueReply(m);
+  }
+  renderLikes();
+}
+
+let dragP=null,sx=0,sy=0,dx=0,dy=0,st=0,moved=false,downTarget=null,sw=1,sh=1,rect=null,raf=0,pid=-1;
+
+function applyDrag(){
+  raf=0;
+  const p=dragP;
+  if(!p)return;
+  p.el.style.transform='translate3d('+dx+'px,'+dy+'px,0) rotate('+(dx/sw*16)+'deg)';
+  const up=dy<0&&-dy>Math.abs(dx);
+  p.likeEl.style.opacity=up?0:clamp(dx/(sw*0.3),0,1);
+  p.nopeEl.style.opacity=up?0:clamp(-dx/(sw*0.3),0,1);
+  p.superEl.style.opacity=up?clamp(-dy/(sh*0.25),0,1):0;
+  const nx=profiles[state.index+1];
+  if(nx){
+    const k=clamp(Math.hypot(dx,dy)/(sw*0.5),0,1);
+    nx.el.style.transform='translateY('+(10-10*k)+'px) scale('+(0.96+0.04*k)+')';
+  }
+}
+
+function release(p){
+  p.el.style.transform='';
+  p.likeEl.style.opacity='';
+  p.nopeEl.style.opacity='';
+  p.superEl.style.opacity='';
+  const nx=profiles[state.index+1];
+  if(nx)nx.el.style.transform='';
+}
+
+function qaHtml(p){
+  const ps=promptsOf(p).slice(0,2);
+  let h='';
+  for(let i=0;i<ps.length;i++)h+='<div class="qaMini"><span>'+esc(ps[i].q)+'</span><b>'+esc(ps[i].a)+'</b></div>';
+  return h;
+}
+
+function factHtml(p,sh){
+  let h='';
+  if(p.job)h+='<div class="cfx"><i>💼</i>'+esc(p.job)+'</div>';
+  if(p.region)h+='<div class="cfx"><i>📍</i>'+esc(p.region)+(p.km?' · '+p.km+'km':'')+'</div>';
+  h+='<div class="cfx"><i>✨</i>'+(sh?'공통 관심사 '+sh+'개':'새로운 취향의 사람')+'</div>';
+  h+='<div class="cfx"><i>'+(p.online?'🟢':'🌙')+'</i>'+(p.online?'지금 접속 중':'조금 전 접속')+'</div>';
+  return h;
+}
+
+function setPage(p,n){
+  const el=p.el;
+  if(!el)return;
+  if(n<0||n>2){
+    el.classList.remove('nudge');
+    void el.offsetWidth;
+    el.classList.add('nudge');
+    return;
+  }
+  p.pg=n;
+  el.dataset.pg=n;
+  if(state.ui.sound&&navigator.vibrate)navigator.vibrate(5);
+  const bs=el.querySelectorAll('.bars i');
+  for(let i=0;i<bs.length;i++)bs[i].classList.toggle('on',i===n);
+}
+
+function tap(p,e){
+  if(downTarget&&downTarget.closest&&downTarget.closest('.infoBtn')){openSheet(p);return;}
+  if(!e||!rect){openSheet(p);return;}
+  setPage(p,(p.pg||0)+(e.clientX<rect.left+rect.width*0.5?-1:1));
+}
+
+function endDrag(e,cancel){
+  if(!dragP||e.pointerId!==pid)return;
+  const p=dragP;
+  dragP=null;
+  if(raf){cancelAnimationFrame(raf);raf=0;}
+  stack.classList.remove('dragging');
+  if(!moved){
+    if(!cancel)tap(p,e);
+    return;
+  }
+  let dir=null;
+  if(!cancel){
+    const dt=Math.max(1,e.timeStamp-st);
+    const vx=dx/dt,vy=dy/dt;
+    if((dy<-sh*0.22&&-dy>Math.abs(dx))||(vy<-0.7&&-vy>Math.abs(vx)&&dy<-40))dir='super';
+    else if(dx>sw*0.28||(vx>0.6&&dx>40))dir='like';
+    else if(dx<-sw*0.28||(vx<-0.6&&dx<-40))dir='nope';
+  }
+  if(dir==='super'){
+    askSuper(p,function(msg){p.superMsg=msg;fly(p,'super',0);},function(){release(p);});
+  }else if(dir)fly(p,dir,dir==='super'?0:dy*0.6);
+  else release(p);
+}
+
+stack.addEventListener('pointerdown',function(e){
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  const p=profiles[state.index];
+  if(!p||dragP)return;
+  dragP=p;
+  sx=e.clientX;sy=e.clientY;dx=0;dy=0;moved=false;
+  st=e.timeStamp;downTarget=e.target;pid=e.pointerId;
+  rect=stack.getBoundingClientRect();
+  sw=rect.width;sh=rect.height;
+  stack.setPointerCapture(pid);
+});
+stack.addEventListener('pointermove',function(e){
+  if(!dragP||e.pointerId!==pid)return;
+  dx=e.clientX-sx;dy=e.clientY-sy;
+  if(!moved){
+    if(dx*dx+dy*dy<64)return;
+    moved=true;
+    stack.classList.add('dragging');
+  }
+  if(!raf)raf=requestAnimationFrame(applyDrag);
+});
+stack.addEventListener('pointerup',function(e){endDrag(e,false);});
+stack.addEventListener('pointercancel',function(e){endDrag(e,true);});
+stack.addEventListener('contextmenu',function(e){e.preventDefault();});
+
+function openSheet(p){
+  sheetP=p;
+  sPhoto.style.background=grad(p,0);
+  sInitial.innerHTML=initialOf(p);
+  sName.textContent=p.name+', '+p.age;
+  sJob.textContent=p.job||'';
+  sJob.hidden=!p.job;
+  sDist.textContent=p.region||'';
+  sBio.textContent=p.bio;
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<p.tags.length;i++){
+    const s=document.createElement('span');
+    s.textContent=p.tags[i];
+    frag.appendChild(s);
+  }
+  sTags.replaceChildren(frag);
+  const qf=document.createDocumentFragment();
+  const ps=p.id==='me'?[]:promptsOf(p);
+  for(let i=0;i<ps.length;i++){
+    const c=document.createElement('div');
+    c.className='qaCard';
+    const q=document.createElement('span');
+    q.textContent=ps[i].q;
+    const a=document.createElement('b');
+    a.textContent=ps[i].a;
+    c.append(q,a);
+    qf.appendChild(c);
+  }
+  $('sQa').replaceChildren(qf);
+  $('sActions').hidden=p.id==='me'||state.matches.some(function(x){return x.id===p.id;});
+  sheet.classList.add('open');
+  sheet.setAttribute('aria-hidden','false');
+}
+
+function closeSheet(){
+  sheetP=null;
+  sheet.classList.remove('open');
+  sheet.setAttribute('aria-hidden','true');
+}
+
+$('sClose').addEventListener('click',function(e){e.stopPropagation();closeSheet();});
+$('sActions').addEventListener('click',function(e){
+  const b=e.target.closest('[data-act]');
+  if(!b)return;
+  const dir=b.dataset.act;
+  const p=sheetP;
+  closeSheet();
+  if(state.view==='deck')setTimeout(function(){swipe(dir);},220);
+  else if(p)decideOutside(p,dir);
+});
+
+function showMatch(m){
+  matchCur=m;
+  mA.innerHTML=state.me?initialOf(state.me):'';
+  mB.innerHTML=initialOf(m.p);
+  mB.style.background=grad(m.p,0);
+  mText.textContent=m.p.name+'님과 서로 좋아해요';
+  matchEl.classList.remove('open');
+  void matchEl.offsetWidth;
+  matchEl.classList.add('open');
+  const hh=matchEl.querySelector('.mHeart');
+  hh.classList.remove('on');
+  setTimeout(function(){hh.classList.add('on');},1700);
+  setTimeout(confetti,620);
+  setTimeout(rain,700);
+  matchSound();
+}
+
+const CONF=['#fff','#ffd166','#ff5d8f','#7bdff2','#b9fbc0','#ffadad'];
+function confetti(){
+  if(!matchEl.classList.contains('open'))return;
+  for(let i=0;i<46;i++){
+    const el=document.createElement('i');
+    el.className='cf';
+    const ang=Math.random()*Math.PI*2;
+    const d=110+Math.random()*Math.min(260,innerWidth*0.6);
+    el.style.cssText='--w:'+(6+Math.random()*6)+'px;--h:'+(10+Math.random()*10)+'px;--c:'+CONF[i%CONF.length]+';--dx:'+Math.cos(ang)*d+'px;--dy:'+(Math.sin(ang)*d+80)+'px;--r:'+(Math.random()*720-360)+'deg;--t:'+(1.2+Math.random()*0.9)+'s';
+    matchEl.appendChild(el);
+    el.addEventListener('animationend',function(){el.remove();});
+  }
+}
+
+function matchSound(){
+  if(!state.ui.sound)return;
+  if(navigator.vibrate)navigator.vibrate([30,50,30,50,120]);
+  if(!audioCtx)return;
+  try{
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    const c=audioCtx;
+    const t0=c.currentTime;
+    const master=c.createGain();
+    master.gain.value=0.5;
+    master.connect(c.destination);
+    const tone=function(f,t,d,type,v){
+      const o=c.createOscillator();
+      const g=c.createGain();
+      o.type=type;
+      o.frequency.setValueAtTime(f,t0+t);
+      g.gain.setValueAtTime(0.0001,t0+t);
+      g.gain.exponentialRampToValueAtTime(v,t0+t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+t+d);
+      o.connect(g);
+      g.connect(master);
+      o.start(t0+t);
+      o.stop(t0+t+d+0.05);
+    };
+    const nb=c.createBuffer(1,Math.floor(c.sampleRate*0.6),c.sampleRate);
+    const nd=nb.getChannelData(0);
+    for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;
+    const ns=c.createBufferSource();
+    ns.buffer=nb;
+    const bp=c.createBiquadFilter();
+    bp.type='bandpass';
+    bp.Q.value=2;
+    bp.frequency.setValueAtTime(300,t0);
+    bp.frequency.exponentialRampToValueAtTime(3500,t0+0.55);
+    const ng=c.createGain();
+    ng.gain.setValueAtTime(0.0001,t0);
+    ng.gain.exponentialRampToValueAtTime(0.25,t0+0.3);
+    ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.6);
+    ns.connect(bp);
+    bp.connect(ng);
+    ng.connect(master);
+    ns.start(t0);
+    const th=c.createOscillator();
+    const tg=c.createGain();
+    th.type='sine';
+    th.frequency.setValueAtTime(160,t0+0.62);
+    th.frequency.exponentialRampToValueAtTime(45,t0+0.9);
+    tg.gain.setValueAtTime(0.0001,t0+0.62);
+    tg.gain.exponentialRampToValueAtTime(0.9,t0+0.64);
+    tg.gain.exponentialRampToValueAtTime(0.0001,t0+0.95);
+    th.connect(tg);
+    tg.connect(master);
+    th.start(t0+0.62);
+    th.stop(t0+1);
+    const arp=[523.25,659.25,783.99,1046.5];
+    for(let i=0;i<arp.length;i++)tone(arp[i],0.66+i*0.11,0.35,'triangle',0.3);
+    tone(1046.5,1.12,0.9,'triangle',0.28);
+    tone(1318.5,1.12,0.9,'triangle',0.22);
+    tone(1568,1.12,0.9,'sine',0.18);
+    for(let i=0;i<6;i++)tone(2000+Math.random()*2200,1.0+i*0.13+Math.random()*0.05,0.18,'sine',0.07);
+  }catch(e){}
+}
+
+function closeMatch(){
+  matchEl.classList.remove('open');
+}
+
+$('mChat').addEventListener('click',function(){
+  const m=matchCur;
+  closeMatch();
+  if(m)openChat(m);
+});
+$('mKeep').addEventListener('click',closeMatch);
+
+function applyTheme(){
+  app.dataset.theme=(LIGHT_VIEWS[state.view]&&!state.ui.dark)?'light':'dark';
+  app.dataset.dark=state.ui.dark?'1':'0';
+}
+
+function setView(v){
+  state.view=v;
+  app.dataset.view=v;
+  app.dataset.auth=AUTH_VIEWS[v]?'1':'0';
+  applyTheme();
+  for(const k in views)views[k].classList.toggle('active',k===v);
+  const key=v==='chat'?'matches':(v==='settings'||v==='discover')?'me':v;
+  for(let i=0;i<tabs.length;i++)tabs[i].classList.toggle('on',tabs[i].dataset.view===key);
+  if(v==='explore')renderExplore();
+  if(v==='likes'){renderLikes();stagger(fitList,likeGrid);}
+  if(v==='matches'){renderMatches();stagger(newStrip,matchList);}
+  if(v==='me')renderMe();
+  if(v==='settings'){renderSettings();syncUi();}
+  if(v==='discover')renderDiscover();
+}
+
+async function renderExplore(){
+  const tags=await api.listTags();
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<tags.length;i++){
+    const b=document.createElement('button');
+    b.className='cat';
+    b.dataset.tag=tags[i];
+    const em=document.createElement('span');
+    em.className='em';
+    em.textContent=EMOJI[tags[i]]||'✨';
+    const nm=document.createElement('b');
+    nm.textContent=tags[i];
+    b.append(em,nm);
+    frag.appendChild(b);
+  }
+  $('catGrid').replaceChildren(frag);
+  stagger($('catGrid'));
+}
+
+$('catGrid').addEventListener('click',function(e){
+  const b=e.target.closest('.cat');
+  if(b)setFilter('cat',b.dataset.tag);
+});
+$('exHero').addEventListener('click',function(){setFilter('tag','');});
+
+deckTop.addEventListener('click',function(e){
+  const b=e.target.closest('.fpill');
+  if(!b||b===catPill)return;
+  if(state.filter.type===b.dataset.f)return;
+  setFilter(b.dataset.f,'');
+});
+
+function sortLikes(list){
+  const me=state.me;
+  const arr=list.slice();
+  if(state.likeSort==='area')arr.sort(function(a,b){return (areaOf(a)===areaOf(me)?0:1)-(areaOf(b)===areaOf(me)?0:1);});
+  else if(state.likeSort==='age')arr.sort(function(a,b){return Math.abs(a.age-me.age)-Math.abs(b.age-me.age);});
+  else arr.sort(function(a,b){return sharedOf(b).length-sharedOf(a).length;});
+  return arr;
+}
+
+function likeCard(p){
+  const el=document.createElement('div');
+  el.className='lcard';
+  el.style.background=grad(p,0);
+  const sh=sharedOf(p);
+  const sub=sh.length?'#'+sh[0]+(sh.length>1?' 외 '+(sh.length-1):''):p.region;
+  el.innerHTML='<span class="linit">'+initialOf(p)+'</span><div class="lbody"><div class="lname">'+esc(p.name)+' <span>'+p.age+'</span></div><div class="lmeta">'+esc(sub)+'</div></div><div class="lbtns"><button class="lb x" data-act="nope" aria-label="패스">'+SVG_X+'</button><button class="lb h" data-act="like" aria-label="좋아요">'+SVG_HEART+'</button></div>';
+  el.addEventListener('click',function(e){
+    const b=e.target.closest('[data-act]');
+    if(b){decideOutside(p,b.dataset.act);return;}
+    openSheet(p);
+  });
+  return el;
+}
+
+function renderLikes(){
+  const all=sortLikes(state.likes);
+  const fl=state.likeFilter||'all';
+  const list=fl==='on'?all.filter(function(p){return p.online;}):fl==='common'?all.filter(function(p){return sharedOf(p).length>0;}):all;
+  likeCount.textContent=all.length;
+  likeCount.hidden=all.length===0;
+  const fit=list.filter(function(p){return sharedOf(p).length>0;}).slice(0,4);
+  fitSec.hidden=fit.length===0;
+  const f1=document.createDocumentFragment();
+  for(let i=0;i<fit.length;i++)f1.appendChild(likeCard(fit[i]));
+  fitList.replaceChildren(f1);
+  const f2=document.createDocumentFragment();
+  const rest=list.filter(function(p){return fit.indexOf(p)<0;});
+  for(let i=0;i<rest.length;i++)f2.appendChild(likeCard(rest[i]));
+  likeGrid.replaceChildren(f2);
+  likeTitle.hidden=rest.length===0;
+  likeEmpty.hidden=list.length>0;
+  for(let i=0;i<sortRow.children.length;i++)sortRow.children[i].classList.toggle('on',sortRow.children[i].dataset.s===state.likeSort);
+  for(let i=0;i<filterRow.children.length;i++)filterRow.children[i].classList.toggle('on',filterRow.children[i].dataset.f===fl);
+}
+
+const filterRow=$('filterRow'),likeTitle=$('likeTitle');
+filterRow.addEventListener('click',function(e){
+  const b=e.target.closest('.sortChip');
+  if(!b)return;
+  state.likeFilter=b.dataset.f;
+  renderLikes();
+});
+
+sortRow.addEventListener('click',function(e){
+  const b=e.target.closest('.sortChip');
+  if(!b)return;
+  state.likeSort=b.dataset.s;
+  renderLikes();
+});
+
+function faceOf(p,cls){
+  const av=document.createElement('span');
+  av.className=cls;
+  av.style.background=grad(p,0);
+  av.innerHTML=initialOf(p);
+  return av;
+}
+
+function renderMatches(){
+  const q=searchInput.value.trim().toLowerCase();
+  const fresh=[],talk=[];
+  for(let i=0;i<state.matches.length;i++){
+    const m=state.matches[i];
+    if(q&&m.p.name.toLowerCase().indexOf(q)<0)continue;
+    (m.msgs.length?talk:fresh).push(m);
+  }
+  talk.sort(function(a,b){return (lastOf(b).ts||0)-(lastOf(a).ts||0);});
+
+  const strip=document.createDocumentFragment();
+  if(!q){
+    const lt=document.createElement('button');
+    lt.className='ntile likeTile';
+    lt.innerHTML='<span class="face">♥ '+state.likes.length+'</span><span>LIKE</span>';
+    lt.addEventListener('click',function(){setView('likes');});
+    strip.appendChild(lt);
+  }
+  for(let i=0;i<fresh.length;i++){
+    const m=fresh[i];
+    const t=document.createElement('button');
+    t.className='ntile';
+    const face=faceOf(m.p,'face');
+    const nm=document.createElement('span');
+    nm.textContent=m.p.name;
+    t.append(face,nm);
+    t.addEventListener('click',function(){openChat(m);});
+    strip.appendChild(t);
+  }
+  newStrip.replaceChildren(strip);
+  newSec.hidden=!!q&&fresh.length===0;
+
+  const frag=document.createDocumentFragment();
+  for(let i=0;i<talk.length;i++){
+    const m=talk[i];
+    const last=lastOf(m);
+    const row=document.createElement('button');
+    row.className='row';
+    const av=faceOf(m.p,'avatar');
+    if(m.p.online){
+      const s=document.createElement('i');
+      s.className='status';
+      av.appendChild(s);
+    }
+    const tx=document.createElement('span');
+    tx.className='rowText';
+    const nm=document.createElement('b');
+    nm.textContent=m.p.name;
+    const ls=document.createElement('em');
+    ls.textContent=last.t;
+    tx.append(nm,ls);
+    row.append(av,tx);
+    if(!last.me){
+      const tn=document.createElement('span');
+      tn.className='turn';
+      tn.textContent='내 차례!';
+      row.appendChild(tn);
+    }
+    if(m.unread){
+      const d=document.createElement('i');
+      d.className='dot';
+      row.appendChild(d);
+    }
+    row.addEventListener('click',function(){openChat(m);});
+    frag.appendChild(row);
+  }
+  matchList.replaceChildren(frag);
+  matchEmpty.innerHTML=q?EMPTY_FOUND:EMPTY_TALK;
+  matchEmpty.hidden=talk.length>0;
+}
+
+searchInput.addEventListener('input',renderMatches);
+
+async function renderMe(){
+  const me=state.me;
+  $('meAv').innerHTML=me?initialOf(me):'';
+  $('meName').textContent=me?me.name+', '+me.age:'내 프로필';
+  $('qaBio').textContent=me?me.bio:'';
+  $('qaTags').textContent=me?me.tags.map(function(t){return '#'+t;}).join(' '):'';
+  const chips=document.createDocumentFragment();
+  if(me){
+    const list=[me.region,me.job,GENDER[me.gender]];
+    for(let i=0;i<list.length;i++){
+      if(!list[i])continue;
+      const c=document.createElement('span');
+      c.className='ichip';
+      c.textContent=list[i];
+      chips.appendChild(c);
+    }
+  }
+  $('meChips').replaceChildren(chips);
+  const s=await api.stats();
+  $('stLikes').textContent=s.likes;
+  $('stSupers').textContent=s.supers;
+  $('stPasses').textContent=s.passes;
+  $('stMatches').textContent=s.matches;
+}
+
+function storageOk(){
+  try{
+    localStorage.setItem('spark_probe','1');
+    localStorage.removeItem('spark_probe');
+    return true;
+  }catch(e){return false;}
+}
+
+function exportSave(){
+  saveDb();
+  const blob=new Blob([JSON.stringify({app:'spark',v:2,db:db})],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='spark-save.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  toast('spark-save.json 으로 저장했어요');
+}
+
+async function importSave(file){
+  let data;
+  try{
+    data=JSON.parse(await file.text());
+  }catch(err){
+    toast('저장 파일을 읽을 수 없어요');
+    return;
+  }
+  const d=data&&data.app==='spark'?data.db:null;
+  if(!d||typeof d.users!=='object'||typeof d.swipes!=='object'||typeof d.matches!=='object'){
+    toast('올바른 저장 파일이 아니에요');
+    return;
+  }
+  db=d;
+  if(!db.liked)db.liked={};
+  if(db.users[DEBUG_EMAIL]&&!db.liked[DEBUG_EMAIL])db.liked[DEBUG_EMAIL]=[];
+  db.session=DEBUG_EMAIL;
+  saveDb();
+  const session=await api.getSession();
+  if(!session){
+    toast('올바른 저장 파일이 아니에요');
+    return;
+  }
+  closeSheet();
+  state.chat=null;
+  await afterAuth(session);
+  toast('불러왔어요');
+}
+
+$('saveData').addEventListener('click',exportSave);
+$('loadData').addEventListener('click',function(){$('loadFile').click();});
+$('loadFile').addEventListener('change',function(e){
+  const f=e.currentTarget.files[0];
+  e.currentTarget.value='';
+  if(f)importSave(f);
+});
+
+async function renderSettings(){
+  $('autoState').textContent=storageOk()?'켜짐':'이 환경에선 불가 · 파일로 저장하세요';
+  const s=await api.getSession();
+  $('setEmail').textContent=s?s.email:'';
+  const pr=await api.getPrefs();
+  $('dcSummary').textContent=pr.dist+'km · '+pr.ageMin+'-'+pr.ageMax+'세';
+}
+
+let prefs=null,prefsDirty=false;
+const dcDist=$('dcDist'),dcMin=$('dcMin'),dcMax=$('dcMax'),swDist=$('swDist'),swAge=$('swAge'),dcLook=$('dcLook'),dcMode=$('dcMode');
+
+function paintPrefs(){
+  $('dcDistVal').textContent=prefs.dist+'km';
+  $('dcAgeVal').textContent=prefs.ageMin+' - '+prefs.ageMax;
+}
+
+async function renderDiscover(){
+  prefs=await api.getPrefs();
+  $('dcLoc').textContent=state.me.region+', 대한민국';
+  dcDist.value=prefs.dist;
+  dcMin.value=prefs.ageMin;
+  dcMax.value=prefs.ageMax;
+  swDist.classList.toggle('on',prefs.autoDist);
+  swAge.classList.toggle('on',prefs.autoAge);
+  swDist.setAttribute('aria-checked',prefs.autoDist);
+  swAge.setAttribute('aria-checked',prefs.autoAge);
+  for(let i=0;i<dcMode.children.length;i++)dcMode.children[i].classList.toggle('on',dcMode.children[i].dataset.m===state.filter.type);
+  paintPrefs();
+}
+
+function commitPrefs(){
+  prefsDirty=true;
+  paintPrefs();
+  api.savePrefs(prefs);
+}
+
+dcDist.addEventListener('input',function(){prefs.dist=+dcDist.value;commitPrefs();});
+dcMin.addEventListener('input',function(){
+  prefs.ageMin=+dcMin.value;
+  if(prefs.ageMin>prefs.ageMax){prefs.ageMax=prefs.ageMin;dcMax.value=prefs.ageMax;}
+  commitPrefs();
+});
+dcMax.addEventListener('input',function(){
+  prefs.ageMax=+dcMax.value;
+  if(prefs.ageMax<prefs.ageMin){prefs.ageMin=prefs.ageMax;dcMin.value=prefs.ageMin;}
+  commitPrefs();
+});
+swDist.addEventListener('click',function(){
+  prefs.autoDist=!prefs.autoDist;
+  swDist.classList.toggle('on',prefs.autoDist);
+  swDist.setAttribute('aria-checked',prefs.autoDist);
+  commitPrefs();
+});
+swAge.addEventListener('click',function(){
+  prefs.autoAge=!prefs.autoAge;
+  swAge.classList.toggle('on',prefs.autoAge);
+  swAge.setAttribute('aria-checked',prefs.autoAge);
+  commitPrefs();
+});
+dcMode.addEventListener('click',function(e){
+  const b=e.target.closest('button');
+  if(!b)return;
+  state.filter={type:b.dataset.m,value:''};
+  for(let i=0;i<dcMode.children.length;i++)dcMode.children[i].classList.toggle('on',dcMode.children[i]===b);
+  prefsDirty=true;
+});
+
+async function leaveDiscover(){
+  if(prefsDirty){
+    prefsDirty=false;
+    await refreshLikes();
+    await loadDeck();
+  }
+  setView('settings');
+}
+
+$('goSettings').addEventListener('click',function(){setView('settings');});
+$('setBack').addEventListener('click',function(){setView('me');});
+$('goDiscover').addEventListener('click',function(){setView('discover');});
+$('dcBack').addEventListener('click',leaveDiscover);
+$('mePreview').addEventListener('click',function(){
+  if(state.me)openSheet({...state.me,id:'me',hue:hueOf(state.me.name),likesMe:false});
+});
+
+function bindBubbleMenu(el,m,g,i){
+  let tm=0,fired=false;
+  const open=function(){
+    fired=true;
+    const btns=[{t:'답장',f:function(){setReply(g);}}];
+    if(!g.me)btns.push({t:g.liked?'공감 취소':'♥ 공감',f:function(){toggleHeart(m,g,i);}});
+    btns.push({t:'취소',c:'cancel'});
+    dlg('메시지',g.st?g.t:(g.t.length>40?g.t.slice(0,40)+'…':g.t),btns);
+  };
+  el.addEventListener('pointerdown',function(e){
+    fired=false;
+    clearTimeout(tm);
+    tm=setTimeout(open,480);
+  });
+  const stop=function(){clearTimeout(tm);};
+  el.addEventListener('pointerup',stop);
+  el.addEventListener('pointerleave',stop);
+  el.addEventListener('pointermove',function(e){if(Math.abs(e.movementX)+Math.abs(e.movementY)>3)stop();});
+  el.addEventListener('contextmenu',function(e){e.preventDefault();stop();open();});
+  el.addEventListener('click',function(e){
+    if(fired){e.stopImmediatePropagation();fired=false;}
+  },true);
+}
+
+function toggleHeart(m,g,i){
+  g.liked=!g.liked;
+  api.setHeart(m.id,i,g.liked);
+  if(inChat(m))renderChat();
+}
+
+function msgRow(m,g,i,sent,isNew,showTime){
+  const row=document.createElement('div');
+  row.className='msg '+(g.me?'me':'them')+(isNew?' new':'');
+  let b;
+  if(g.st){
+    b=document.createElement('div');
+    b.className='sticker';
+    b.textContent=g.t;
+  }else{
+    b=document.createElement('div');
+    b.className='bubble';
+    if(g.re){
+      const q=document.createElement('div');
+      q.className='rq';
+      q.textContent=g.re;
+      b.appendChild(q);
+    }
+    if(g.sup){
+      const sp=document.createElement('div');
+      sp.className='sup';
+      sp.textContent='⭐ 슈퍼 메시지';
+      b.insertBefore(sp,b.firstChild);
+    }
+    b.appendChild(document.createTextNode(g.t));
+  }
+  bindBubbleMenu(b,m,g,i);
+  if(g.me){
+    row.appendChild(b);
+    if(g.read===false||showTime){
+      const s=document.createElement('span');
+      s.className='sentTag';
+      if(g.read===false){
+        const n=document.createElement('b');
+        n.textContent='1';
+        s.appendChild(n);
+      }
+      if(showTime)s.appendChild(document.createTextNode(fmtTime(g.ts)));
+      row.appendChild(s);
+    }
+    return row;
+  }
+  const av=faceOf(m.p,'avatar mini');
+  av.style.cursor='pointer';
+  av.addEventListener('click',function(){openSheet(m.p);});
+  row.appendChild(av);
+  if(g.liked)b.appendChild(heartEl());
+  b.addEventListener('click',function(){toggleHeart(m,g,i);});
+  row.appendChild(b);
+  if(showTime){
+    const t=document.createElement('span');
+    t.className='mt';
+    t.textContent=fmtTime(g.ts);
+    row.appendChild(t);
+  }
+  return row;
+}
+
+function heartEl(fresh){
+  const h=document.createElement('i');
+  h.className='hrt'+(fresh?' fresh':'');
+  h.textContent='♥';
+  return h;
+}
+
+function typingRow(m){
+  const row=document.createElement('div');
+  row.className='msg them';
+  const tav=faceOf(m.p,'avatar mini');
+  tav.addEventListener('click',function(){openSheet(m.p);});
+  row.appendChild(tav);
+  const b=document.createElement('div');
+  b.className='bubble typing';
+  b.innerHTML='<i></i><i></i><i></i>';
+  row.appendChild(b);
+  return row;
+}
+
+function renderChat(){
+  const m=state.chat;
+  if(!m)return;
+  $('stageTag').textContent=STAGES[stageOf(m)];
+  const n=m.msgs.length;
+  let lastMe=-1;
+  for(let i=0;i<n;i++)if(m.msgs[i].me)lastMe=i;
+  const frag=document.createDocumentFragment();
+  if(!n){
+    const s0=document.createElement('div');
+    s0.className='sep';
+    s0.textContent='먼저 말을 걸어 보세요';
+    frag.appendChild(s0);
+  }
+  let lastDay='';
+  for(let i=0;i<n;i++){
+    const g=m.msgs[i];
+    const day=dayOf(g.ts);
+    if(day!==lastDay){
+      lastDay=day;
+      const s=document.createElement('div');
+      s.className='sep';
+      s.textContent=day+' '+fmtTime(g.ts);
+      frag.appendChild(s);
+    }
+    const nx=i+1<n?m.msgs[i+1]:null;
+    const showTime=!nx||nx.me!==g.me||fmtTime(nx.ts)!==fmtTime(g.ts);
+    frag.appendChild(msgRow(m,g,i,false,i>=(m.rendered||0)&&i===n-1,showTime));
+  }
+  if(m.typing)frag.appendChild(typingRow(m));
+  m.rendered=n;
+  chatLog.replaceChildren(frag);
+  chatLog.scrollTop=chatLog.scrollHeight;
+  if(state.chatQ){
+    const bs=chatLog.querySelectorAll('.bubble');
+    let first=null;
+    for(let i=0;i<bs.length;i++){
+      if(bs[i].textContent.indexOf(state.chatQ)>=0){bs[i].classList.add('hit');if(!first)first=bs[i];}
+    }
+    if(first)first.scrollIntoView({block:'center'});
+  }
+}
+
+function inChat(m){return state.chat===m&&state.view==='chat';}
+
+function openChat(m){
+  state.chat=m;
+  state.chatQ='';
+  if(m.unread)api.setUnread(m.id,false);
+  m.unread=false;
+  clearReply();
+  $('stPanel').hidden=true;
+  updateBadge();
+  chatName.textContent=m.p.name;
+  $('aiTag').textContent=m.p.partner?(m.p.gender==='f'?'AI 여자친구':'AI 남자친구'):'AI';
+  chatAvatar.innerHTML=initialOf(m.p);
+  chatAvatar.style.background=grad(m.p,0);
+  chatAvatar.style.cursor='pointer';
+  m.rendered=m.msgs.length;
+  setView('chat');
+  renderChat();
+  if(matchMedia('(pointer:fine)').matches)chatInput.focus();
+}
+
+function pushMine(m,t,st){
+  const ts=Date.now();
+  const g={me:true,t:t,ts:ts,read:false};
+  if(st)g.st=true;
+  if(state.replyTo){g.re=state.replyTo;}
+  m.msgs.push(g);
+  api.addMessage(m.id,true,t,ts,{st:g.st,re:g.re,read:undefined});
+  clearReply();
+  m.proCount=0;
+  m.mem.proSent=false;
+  state.chatQ='';
+  if(!st){bumpAff(m.mem,t);learn(m.mem,t,ts);}
+  api.setMem(m.id,m.mem);
+  renderChat();
+  if(m.busy)m.again=true;
+  else queueReply(m);
+}
+
+function sendChat(){
+  const m=state.chat;
+  const t=chatInput.value.trim();
+  if(!m)return;
+  if(!t){chatInput.focus();return;}
+  chatInput.value='';
+  sendBtn.classList.remove('ready');
+  $('stPanel').hidden=true;
+  pushMine(m,t,false);
+}
+
+function setReply(g){
+  state.replyTo=g.t.length>30?g.t.slice(0,30)+'…':g.t;
+  $('replyTxt').textContent=state.replyTo;
+  $('replyBar').hidden=false;
+  chatInput.focus();
+}
+
+function clearReply(){
+  state.replyTo=null;
+  $('replyBar').hidden=true;
+}
+
+$('replyX').addEventListener('click',clearReply);
+
+const stPanel=$('stPanel');
+(function(){
+  const f=document.createDocumentFragment();
+  for(let i=0;i<STICKERS.length;i++){
+    const b=document.createElement('button');
+    b.type='button';
+    b.textContent=STICKERS[i];
+    b.addEventListener('click',function(){
+      if(!state.chat)return;
+      stPanel.hidden=true;
+      pushMine(state.chat,STICKERS[i],true);
+    });
+    f.appendChild(b);
+  }
+  stPanel.appendChild(f);
+})();
+$('stBtn').addEventListener('click',function(){stPanel.hidden=!stPanel.hidden;if(!stPanel.hidden)chatLog.scrollTop=chatLog.scrollHeight;});
+
+const dlgEl=$('dlg');
+function closeDlg(){dlgEl.hidden=true;}
+let dlgOnClose=null;
+const dInput=$('dInput');
+function dlg(title,msg,btns,opts){
+  $('dTitle').textContent=title;
+  $('dMsg').textContent=msg||'';
+  dlgOnClose=opts&&opts.onClose?opts.onClose:null;
+  dInput.hidden=!(opts&&opts.input);
+  dInput.value='';
+  if(opts&&opts.input)dInput.placeholder=opts.input;
+  const box=$('dBtns');
+  box.replaceChildren();
+  for(let i=0;i<btns.length;i++){
+    const b=document.createElement('button');
+    b.type='button';
+    b.textContent=btns[i].t;
+    if(btns[i].c)b.className=btns[i].c;
+    b.addEventListener('click',function(){
+      const v=dInput.value;
+      dlgOnClose=null;
+      closeDlg();
+      if(btns[i].f)btns[i].f(v);
+    });
+    box.appendChild(b);
+  }
+  dlgEl.hidden=false;
+  if(opts&&opts.input)setTimeout(function(){dInput.focus();},60);
+}
+dlgEl.addEventListener('click',function(e){
+  if(e.target!==dlgEl)return;
+  closeDlg();
+  if(dlgOnClose){const f=dlgOnClose;dlgOnClose=null;f();}
+});
+dInput.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+  e.preventDefault();
+  const b=$('dBtns').querySelector('button');
+  if(b)b.click();
+});
+
+function askSuper(p,onSend,onCancel){
+  dlg('⭐ 슈퍼 메시지',p.name+'님에게 먼저 마음을 전해 보세요',[
+    {t:'보내기',f:function(v){onSend(v.trim().slice(0,80));}},
+    {t:'메시지 없이 슈퍼라이크',f:function(){onSend('');}},
+    {t:'취소',c:'cancel',f:function(){if(onCancel)onCancel();}}
+  ],{input:'첫인사를 입력해 주세요',onClose:onCancel});
+}
+
+async function removeChat(m,msg,block){
+  clearTimeout(m.replyTimer);
+  clearTimeout(m.readTimer);
+  m.gone=true;
+  await api.removeMatch(m.id,!!block,{name:m.p.name,age:m.p.age});
+  const k=state.matches.indexOf(m);
+  if(k>=0)state.matches.splice(k,1);
+  for(let i=0;i<state.likes.length;i++)if(state.likes[i].id===m.id){state.likes.splice(i,1);break;}
+  state.chat=null;
+  updateBadge();
+  setView('matches');
+  toast(msg,true);
+}
+
+function confirmRemove(m,kind){
+  const label=kind==='block'?'차단':'매치 해제';
+  dlg(m.p.name+'님을 '+label+'할까요?',kind==='block'?'차단하면 더 이상 서로 보이지 않아요':'대화 내용도 함께 사라져요',[{t:label,c:'danger',f:function(){removeChat(m,label+'했어요',kind==='block');}},{t:'취소',c:'cancel'}]);
+}
+
+function reportFlow(m){
+  const done=function(){
+    toast('신고가 접수됐어요',true);
+    dlg('신고가 접수됐어요','이 사용자를 차단할까요?',[{t:'차단하기',c:'danger',f:function(){removeChat(m,'차단했어요',true);}},{t:'나중에',c:'cancel'}]);
+  };
+  dlg('신고 사유를 선택해 주세요','',[{t:'부적절한 대화',f:done},{t:'스팸 · 광고',f:done},{t:'기타',f:done},{t:'취소',c:'cancel'}]);
+}
+
+chatAvatar.addEventListener('click',function(){if(state.chat)openSheet(state.chat.p);});
+$('chatMore').addEventListener('click',function(){
+  const m=state.chat;
+  if(!m)return;
+  dlg(m.p.name,'',[{t:'대화 검색',f:function(){dlg('대화 검색','',[{t:'검색',f:function(v){searchChat(m,v.trim());}},{t:'취소',c:'cancel'}],{input:'검색어 입력'});}},{t:'대화 내용 지우기',c:'danger',f:function(){dlg('대화 내용을 지울까요?','지운 대화는 복구할 수 없어요',[{t:'지우기',c:'danger',f:function(){clearChat(m);}},{t:'취소',c:'cancel'}]);}},{t:'매치 해제',f:function(){confirmRemove(m,'unmatch');}},{t:'차단하기',f:function(){confirmRemove(m,'block');}},{t:'신고하기',f:function(){reportFlow(m);}},{t:'취소',c:'cancel'}]);
+});
+
+let audioCtx=null;
+function unlockAudio(){
+  if(audioCtx||!(window.AudioContext||window.webkitAudioContext))return;
+  try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){audioCtx=null;}
+}
+document.addEventListener('pointerdown',unlockAudio,{once:true});
+document.addEventListener('keydown',unlockAudio,{once:true});
+
+function notify(){
+  if(!state.ui.sound)return;
+  if(audioCtx){
+    try{
+      if(audioCtx.state==='suspended')audioCtx.resume();
+      const t0=audioCtx.currentTime;
+      const g=audioCtx.createGain();
+      g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.12,t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.35);
+      const o=audioCtx.createOscillator();
+      o.type='sine';
+      o.frequency.setValueAtTime(880,t0);
+      o.frequency.setValueAtTime(1175,t0+0.12);
+      o.connect(g);
+      o.start(t0);
+      o.stop(t0+0.38);
+    }catch(e){}
+  }
+  if(navigator.vibrate)navigator.vibrate(30);
+}
+
+function searchChat(m,q){
+  state.chatQ=q;
+  renderChat();
+  if(q)toast(chatLog.querySelectorAll('.bubble.hit').length+'개 찾았어요',true);
+}
+
+async function clearChat(m){
+  clearTimeout(m.replyTimer);
+  clearTimeout(m.readTimer);
+  await api.clearMessages(m.id);
+  m.msgs.length=0;
+  m.rendered=0;
+  m.mem.proSent=false;
+  m.waiting=false;
+  renderChat();
+  toast('대화 내용을 지웠어요',true);
+}
+
+$('blockList').addEventListener('click',async function(){
+  const bl=await api.listBlocked();
+  if(!bl.length){dlg('차단 목록','차단한 사람이 없어요',[{t:'확인',c:'cancel'}]);return;}
+  const btns=bl.map(function(b){return {t:b.name+' · 차단 해제',f:async function(){await api.unblock(b.id);toast('차단을 해제했어요',true);}};});
+  btns.push({t:'닫기',c:'cancel'});
+  dlg('차단 목록','해제하면 다시 나타날 수 있어요',btns);
+});
+
+function swipeSound(kind){
+  if(!state.ui.sound)return;
+  if(audioCtx){
+    try{
+      if(audioCtx.state==='suspended')audioCtx.resume();
+      const t0=audioCtx.currentTime;
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type=kind==='nope'?'triangle':'sine';
+      const a=kind==='nope'?[420,220]:kind==='super'?[600,1300]:[520,880];
+      o.frequency.setValueAtTime(a[0],t0);
+      o.frequency.exponentialRampToValueAtTime(a[1],t0+0.16);
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.07,t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.2);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0+0.22);
+    }catch(e){}
+  }
+  if(navigator.vibrate)navigator.vibrate(kind==='super'?[10,30,10]:8);
+}
+
+function syncUi(){
+  $('swSound').classList.toggle('on',state.ui.sound);
+  $('swSound').setAttribute('aria-checked',state.ui.sound);
+  $('swDark').classList.toggle('on',state.ui.dark);
+  $('swDark').setAttribute('aria-checked',state.ui.dark);
+}
+$('swSound').addEventListener('click',function(){
+  state.ui.sound=!state.ui.sound;
+  api.saveUi(state.ui);
+  syncUi();
+  if(state.ui.sound)notify();
+});
+$('swDark').addEventListener('click',function(){
+  state.ui.dark=!state.ui.dark;
+  api.saveUi(state.ui);
+  syncUi();
+  applyTheme();
+});
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+function deliver(m,t,extra){
+  if(m.gone)return;
+  const ts=Date.now();
+  const g={me:false,t:t,ts:ts};
+  if(t.charAt(0)==='\u0001'){g.t=t.slice(1);g.st=true;}
+  if(extra&&extra.re)g.re=extra.re;
+  m.msgs.push(g);
+  api.addMessage(m.id,false,g.t,ts,{st:g.st,re:g.re});
+  notify();
+  if(inChat(m))renderChat();
+  else{
+    m.unread=true;
+    api.setUnread(m.id,true);
+    updateBadge();
+    if(state.view==='matches')renderMatches();
+    if(!AUTH_VIEWS[state.view])toast(m.p.name+'님이 새로운 메세지를 보냈습니다',true);
+  }
+}
+
+const SYN=[['정말','진짜','완전','너무','되게'],['요즘','요새','최근에'],['고마워요','감사해요','고맙네요'],['그렇구나','그렇군요'],['많이','꽤','엄청'],['같이','함께'],['궁금해요','궁금하네요','궁금해졌어요'],['어땠어요','어땠어요?','어떠셨어요']];
+const SIGS=['','사실','솔직히','음','아 그니까','있잖아요','흠','근데','','와'];
+const EMOSETS=[['😊','☺️'],['😆','🙌'],['🙂','🌿'],['🥰','💕'],['😏','😜'],['🤭','😝'],['✨','🔥'],['☕','🌙'],['😌','🍀'],['😄','👍']];
+const CATCHES=[
+[/셰프|요리|바리스타|베이커|파티시에/,['배고프니까 뭐 먹으러 가야겠어요','맛있는 거 먹으면 다 괜찮아져요']],
+[/개발|엔지니어|데이터|프로그래머/,['아 저 코드 보러 가야겠어요 ㅋㅋ','오늘은 버그 없는 하루였으면 좋겠어요']],
+[/디자이너|일러스트|웹툰|작가|사진|영상|감독/,['저 이거 얘기하다 영감 떠올랐어요','작업하다 말고 폰 보는 중이에요']],
+[/의사|간호|약사|수의/,['쉬는 시간 얼마 안 남았어요','잠깐 얘기하니까 힘나요']],
+[/트레이너|필라테스|소방|코치/,['저 이제 스트레칭 하고 올게요','몸 쓰는 얘기면 밤새 할 수 있어요']],
+[/대학|연구|학생/,['과제 해야 하는데 이게 더 재밌어요','시험 얘기는 하지 말아줘요 ㅋㅋ']],
+[/마케터|창업|기획|영업/,['회의 끝나면 연락할게요','머리 쓰다 보니 당 떨어져요']],
+[/승무원|파일럿|가이드/,['시차 때문에 지금 몇 시인지 모르겠어요','다음 여행지 정하면 알려줄게요']],
+[/뮤지션|래퍼|DJ/,['지금 머릿속에 멜로디 하나 맴돌아요','노래 얘기면 끝이 없어요']],
+[/사서|교사|번역/,['조용한 데서 얘기하는 게 좋아요','책 한 권 추천해줄게요 나중에']],
+[/건축|플로리스트/,['오늘 하늘 색이 예쁘더라고요','천천히 얘기해요']]
+];
+
+function voiceOf(p){
+  const id=String(p.id||p.name);
+  if(p._v)return p._v;
+  const v={
+    syn:SYN.map(function(g,i){return g[hsh(id,50+i)%g.length];}),
+    sig:SIGS[hsh(id,60)%SIGS.length],
+    cute:hsh(id,61)%100<20,
+    dry:hsh(id,62)%100<18,
+    brev:hsh(id,63)%3,
+    emo:EMOSETS[hsh(id,64)%EMOSETS.length],
+    catchP:0.06+(hsh(id,65)%8)/100,
+    askP:[0.08,0.3,0.55][hsh(id,66)%3],
+    speed:[0.6,1,1.7][hsh(id,67)%3]
+  };
+  p._v=v;
+  return v;
+}
+
+function voiceLine(p,x,first){
+  const v=voiceOf(p);
+  for(let i=0;i<SYN.length;i++){
+    const g=SYN[i];
+    for(let k=0;k<g.length;k++){
+      if(g[k]!==v.syn[i]&&g[k].indexOf('?')<0&&x.indexOf(g[k])>=0&&v.syn[i].indexOf('?')<0)x=x.split(g[k]).join(v.syn[i]);
+    }
+  }
+  x=x.replace(EMO_RE,function(){return ' '+v.emo[Math.floor(Math.random()*v.emo.length)];});
+  if(v.dry){x=x.replace(EMO_RE,'').replace(/!+$/,'');}
+  if(v.cute&&Math.random()<0.6)x=x.replace(/([해좋어아네])요(?=[^가-힣]*$)/,'$1용');
+  if(first&&v.sig&&Math.random()<0.28&&!/[?？]$/.test(x)&&x.length>8&&!/^(아|와|오|음|흠|헉|근데|사실|솔직히)/.test(x))x=v.sig+' '+x;
+  return x;
+}
+
+function stageOf(m){
+  let n=meCount(m);
+  n+=Math.max(0,Math.floor((affOf(m.mem)-30)/8));
+  return n<8?0:n<30?1:2;
+}
+
+function quirkOf(p){
+  const h=hueOf(String(p.id||p.name));
+  return {kind:h%5,filler:['음','아','근데','있잖아'][(h>>3)%4]};
+}
+
+const BANMAL=[[/이에요$/,'이야'],[/예요$/,'야'],[/했어요$/,'했어'],[/네요$/,'네'],[/죠$/,'지'],[/까요$/,'까'],[/([가-힣])요$/,'$1']];
+function banmal(x){
+  const mt=/^([\s\S]*?)([^가-힣]*)$/.exec(x);
+  let body=mt[1];
+  for(let i=0;i<BANMAL.length;i++){
+    if(BANMAL[i][0].test(body)){body=body.replace(BANMAL[i][0],BANMAL[i][1]);break;}
+  }
+  return body+mt[2];
+}
+
+const EMO_ONE=/[\u{1F300}-\u{1FAFF}☀-➿]/u;
+
+function kakao(p,list,m){
+  const q=quirkOf(p);
+  const stage=m?stageOf(m):0;
+  const out=[];
+  for(let i=0;i<list.length;i++){
+    let x=list[i].trim().replace(/\.+$/,'');
+    if(!x)continue;
+    if(x.length>24&&/[.!?~]\s+\S/.test(x)){
+      const parts=x.split(/(?<=[.!?~])\s+/);
+      for(let k=0;k<parts.length;k++){
+        const y=parts[k].trim().replace(/\.+$/,'');
+        if(y)out.push(y);
+      }
+    }else out.push(x);
+  }
+  if(m&&out.length>1){
+    const seen=[];
+    for(let i=m.msgs.length-1;i>=0&&seen.length<14;i--)if(!m.msgs[i].me)seen.push(m.msgs[i].t);
+    for(let i=out.length-1;i>=0&&out.length>1;i--)if(out[i].length>4&&seen.indexOf(out[i])>=0)out.splice(i,1);
+  }
+  const vo=voiceOf(p);
+  for(let i=0;i<out.length;i++)out[i]=voiceLine(p,out[i],i===0);
+  const cap=vo.brev===0?2:vo.brev===1?3:4;
+  if(out.length>cap)out.length=cap;
+  if(out.length&&out.length<3&&Math.random()<vo.catchP&&!/[?？]$/.test(out[out.length-1])){
+    let cl='';
+    for(let i=0;i<CATCHES.length;i++)if(CATCHES[i][0].test(p.job||'')){cl=CATCHES[i][1][Math.floor(Math.random()*CATCHES[i][1].length)];break;}
+    if(cl)out.push(cl);
+  }
+  if(m&&out.length&&out.length<3&&Math.random()<vo.askP&&!out.some(function(x){return /[?？]$/.test(x);})&&affOf(m.mem)>=20)out.push(pick(GEN_Q,m.msgs.filter(function(g){return !g.me;}).map(function(g){return g.t;})));
+  const call=callOf(p);
+  const force=!!(m&&m.mem.banForce);
+  if(stage>=1||force){
+    for(let i=0;i<out.length;i++)out[i]=out[i].split(call+'님').join(call);
+  }
+  if(force||(stage>=2&&Math.random()<0.75)){
+    for(let i=0;i<out.length;i++)out[i]=banmal(out[i]);
+  }
+  if(q.kind===3){
+    for(let i=0;i<out.length;i++)out[i]=out[i].replace(EMO_RE,'');
+  }
+  const lastIdx=out.length-1;
+  if(lastIdx>=0&&!/[?？]$/.test(out[lastIdx])&&!EMO_ONE.test(out[lastIdx])&&out[lastIdx].length<22){
+    const r=Math.random();
+    if(q.kind===0&&r<0.4)out[lastIdx]+=pick(['ㅋㅋ','ㅋㅋㅋ'],[]);
+    else if(q.kind===1&&r<0.35)out[lastIdx]+=pick(['ㅎㅎ','ㅎㅎㅎ'],[]);
+    else if(q.kind===2&&r<0.3&&/[가-힣]$/.test(out[lastIdx]))out[lastIdx]+='~';
+    else if(q.kind===4&&r<0.3)out[lastIdx]+='!';
+  }
+  const aff=m?affOf(m.mem):30;
+  if(aff<18){
+    if(out.length>1)out.length=1;
+    for(let i=0;i<out.length;i++)out[i]=out[i].replace(EMO_RE,'');
+  }else if(aff>=75&&out.length&&Math.random()<0.3&&!EMO_ONE.test(out[out.length-1])&&!/[?？]$/.test(out[out.length-1]))out[out.length-1]+=' '+vo.emo[0];
+  const slice=out.slice(0,3);
+  if(slice.length&&Math.random()<0.12){
+    const last=slice[slice.length-1];
+    let st='👍';
+    if(/ㅋㅋ|웃/.test(last))st='😂';
+    else if(/ㅠ|힘들|속상|괜찮/.test(last))st='🤗';
+    else if(/좋아|사랑|보고/.test(last))st='🥰';
+    else st=pick(['👍','😘','🤔','☕'],[]);
+    slice.push('\u0001'+st);
+  }
+  return slice;
+}
+
+function markRead(m){
+  let ch=false;
+  for(let i=0;i<m.msgs.length;i++)if(m.msgs[i].me&&m.msgs[i].read===false){m.msgs[i].read=true;ch=true;}
+  if(ch&&inChat(m))renderChat();
+}
+
+function rnd(a,b){return a+Math.random()*(b-a);}
+
+function readDelay(m,t){
+  let d=rnd(2500,6000)+t.length*80;
+  if(m.p.partner)d=rnd(2000,4500)+t.length*60;
+  const r=Math.random();
+  if(r<0.15)d+=rnd(5000,12000);
+  else if(r<0.3)d+=rnd(2000,5000);
+  const hr=new Date().getHours();
+  let mul=voiceOf(m.p).speed;
+  if(hr>=1&&hr<5)mul*=1.5;
+  else if(hr>=12&&hr<13)mul*=1.2;
+  if(affOf(m.mem)<18)mul*=1.8;
+  else if(affOf(m.mem)>=75)mul*=0.85;
+  return Math.min(d*mul,32000);
+}
+
+function typeDelay(t){
+  if(t.charAt(0)==='\u0001')return rnd(900,1600);
+  return clamp(1200+t.length*300,2200,11000)*rnd(0.8,1.25);
+}
+
+function queueReply(m){
+  clearTimeout(m.replyTimer);
+  const last=m.msgs[m.msgs.length-1];
+  m.waiting=true;
+  const d=readDelay(m,last?last.t:'');
+  clearTimeout(m.readTimer);
+  m.readTimer=setTimeout(function(){markRead(m);},Math.min(d*rnd(0.35,0.7),d-300));
+  m.replyTimer=setTimeout(function(){
+    m.waiting=false;
+    if(!m.ghosted&&(m.mem.bad||0)<3&&Math.random()<0.07){
+      m.ghosted=true;
+      setTimeout(function(){
+        m.ghosted=false;
+        const l=m.msgs[m.msgs.length-1];
+        if(l&&l.me&&!m.busy)replyAs(m,true);
+      },rnd(70000,160000));
+      return;
+    }
+    replyAs(m,false);
+  },d);
+}
+
+async function replyAs(m,late){
+  if(m.busy){m.again=true;return;}
+  m.busy=true;
+  m.pending=(m.pending||0)+1;
+  const lastMsg=m.msgs[m.msgs.length-1];
+  let list;
+  try{
+    let k=m.msgs.length;
+    while(k>0&&m.msgs[k-1].me&&m.msgs[k-1].st)k--;
+    const textual=k>0&&k<m.msgs.length&&m.msgs[k-1].me;
+    if(lastMsg&&lastMsg.st&&!textual){
+      list=Math.random()<0.6?['\u0001'+pick(['😂','🥰','😘','👍','🤗'],[])]:[pick(['ㅋㅋㅋ','ㅎㅎ','귀여워요','나도요 ㅎㅎ'],[])];
+    }else{
+      const src=textual?m.msgs.slice(0,k):m.msgs;
+      let tries=0;
+      do{
+        const r=await ai.reply(m.p,src,m.mem);
+        list=kakao(m.p,Array.isArray(r)?r:[r],m);
+        tries++;
+      }while(tries<3&&list.length&&hasDup(m,list));
+      if(list.length>1)list=list.filter(function(x){return !dupLine(m,x);});
+      if(list.length&&!(m.mem.bad>=3))list=shapeReply(m,list,src[src.length-1].t.trim());
+      if(late&&list.length)list.unshift(pick(['아 미안해요 이제 봤어요','앗 늦었다 미안해요','잠깐 다른 거 하다가 이제 봤어요'],[]));
+    }
+  }catch(err){
+    list=['잠깐 연결이 불안정해요. 다시 말해 줄래요?'];
+  }
+  let re='';
+  if(lastMsg&&!lastMsg.st&&lastMsg.t.length>=16&&Math.random()<0.15)re=lastMsg.t.slice(0,24);
+  for(let i=0;i<list.length&&!m.gone;i++){
+    if(i>0)await sleep(rnd(500,1400));
+    m.typing=true;
+    if(inChat(m))renderChat();
+    await sleep(typeDelay(list[i]));
+    m.typing=false;
+    deliver(m,list[i],i===0&&re?{re:re}:null);
+  }
+  m.pending--;
+  m.busy=false;
+  api.setMem(m.id,m.mem);
+  if(inChat(m))renderChat();
+  if(m.again){m.again=false;queueReply(m);}
+}
+
+let proTimer=0,proOpenTs=0;
+
+async function sendProactive(m,longGap){
+  m.mem.proSent=true;
+  api.setMem(m.id,m.mem);
+  const lines=kakao(m.p,proactiveLines(m.p,m.mem,m.msgs));
+  m.pending=(m.pending||0)+1;
+  for(let i=0;i<lines.length&&!m.gone;i++){
+    if(i>0)await sleep(rnd(500,1400));
+    m.typing=true;
+    if(inChat(m))renderChat();
+    await sleep(typeDelay(lines[i]));
+    m.typing=false;
+    deliver(m,lines[i]);
+  }
+  m.pending--;
+  m.proCount=(m.proCount||0)+1;
+  if(longGap){m.openedGreet=true;m.proCount=0;}
+  api.setMem(m.id,m.mem);
+  if(inChat(m))renderChat();
+}
+
+function tickProactive(){
+  if(state.me)api.touchSeen();
+  if(document.hidden||!state.me||AUTH_VIEWS[state.view])return;
+  const now=Date.now();
+  for(let i=0;i<state.matches.length;i++){
+    const m=state.matches[i];
+    if(m.pending>0||m.waiting||m.mem.proSent)continue;
+    if(inChat(m)&&chatInput.value.trim())continue;
+    const n=m.msgs.length;
+    const last=n?m.msgs[n-1]:null;
+    if(last&&!last.me)continue;
+    if(!last&&!m.aiFirst)continue;
+    const idle=now-(last?last.ts:(m.arrivedTs||proOpenTs));
+    const longGap=!!last&&idle>PRO.gap&&!m.openedGreet;
+    const ok=longGap||(!last&&idle>PRO.first)||(!!last&&((m.proCount||0)<2||hasDue(m.mem))&&idle>PRO.idle);
+    if(!ok)continue;
+    if(!longGap&&last&&Math.random()>(m.p.partner?0.8:0.3))continue;
+    sendProactive(m,longGap);
+    return;
+  }
+}
+
+let revealTimer=0;
+
+function scheduleReveal(first){
+  clearTimeout(revealTimer);
+  revealTimer=setTimeout(async function(){
+    if(!state.me)return;
+    const p=await api.revealLike();
+    if(p){
+      await refreshLikes();
+      if(!AUTH_VIEWS[state.view])toast('누군가 회원님을 좋아해요 💗',true);
+      if(state.view==='likes')renderLikes();
+      scheduleReveal(false);
+    }
+  },first?rnd(9000,16000):rnd(25000,70000));
+}
+
+function startProactive(){
+  scheduleReveal(true);
+  clearInterval(proTimer);
+  proOpenTs=Date.now();
+  proTimer=setInterval(tickProactive,PRO.tick);
+}
+
+chatForm.addEventListener('submit',function(e){e.preventDefault();sendChat();});
+sendBtn.addEventListener('mousedown',function(e){e.preventDefault();});
+sendBtn.addEventListener('touchend',function(e){
+  const t=e.changedTouches[0];
+  if(document.elementFromPoint(t.clientX,t.clientY)!==sendBtn&&!sendBtn.contains(document.elementFromPoint(t.clientX,t.clientY)))return;
+  e.preventDefault();
+  sendChat();
+},{passive:false});
+function refreshChatView(){
+  if(state.chat)renderChat();
+  chatLog.scrollTop=chatLog.scrollHeight;
+  window.scrollTo(0,0);
+}
+chatInput.addEventListener('focus',function(){
+  refreshChatView();
+  setTimeout(refreshChatView,320);
+});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',function(){
+    if(state.view==='chat'&&document.activeElement===chatInput)refreshChatView();
+  });
+}
+chatInput.addEventListener('input',function(){
+  sendBtn.classList.toggle('ready',chatInput.value.trim().length>0);
+});
+chatInput.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.isComposing||e.keyCode===229)return;
+  e.preventDefault();
+  if(!e.repeat)sendChat();
+});
+
+$('chatBack').addEventListener('click',function(){setView('matches');});
+$('restart').addEventListener('click',restart);
+$('restart2').addEventListener('click',restart);
+
+actions.addEventListener('click',function(e){
+  const b=e.target.closest('[data-act]');
+  if(!b)return;
+  const a=b.dataset.act;
+  if(a==='rewind')rewind();
+  else swipe(a);
+});
+
+$('nav').addEventListener('click',function(e){
+  const b=e.target.closest('.ntab');
+  if(!b)return;
+  closeSheet();
+  setView(b.dataset.view);
+});
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){
+    if(e.isComposing)return;
+    if(matchEl.classList.contains('open')){closeMatch();return;}
+    if(sheetP){closeSheet();return;}
+    if(state.view==='chat'){setView('matches');return;}
+    if(state.view==='discover'){leaveDiscover();return;}
+    if(state.view==='partner'&&pnRemake){setView('settings');return;}
+    if(state.view==='settings'){setView('me');return;}
+    if(state.view==='login'||state.view==='signup'){setView('splash');return;}
+    if(state.view==='setup'&&state.editing){setView('me');return;}
+    return;
+  }
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+  if(e.key==='Enter'&&state.view==='splash'&&!splashBtns.hidden){setView('login');return;}
+  if(state.view!=='deck'||matchEl.classList.contains('open'))return;
+  if(sheetP){
+    if(e.key==='ArrowDown'||e.key===' '||e.key==='i'||e.key==='I'){e.preventDefault();closeSheet();}
+    return;
+  }
+  switch(e.key){
+    case 'ArrowLeft':swipe('nope');break;
+    case 'ArrowRight':swipe('like');break;
+    case 'ArrowUp':e.preventDefault();swipe('super');break;
+    case 'z':case 'Z':case 'Backspace':rewind();break;
+    case ' ':case 'ArrowDown':case 'i':case 'I':{
+      e.preventDefault();
+      const p=profiles[state.index];
+      if(p)openSheet(p);
+      break;
+    }
+  }
+});
+
+function segSet(seg,v){
+  const bs=seg.children;
+  for(let i=0;i<bs.length;i++)bs[i].classList.toggle('on',bs[i].dataset.v===v);
+}
+
+function segVal(seg){
+  const b=seg.querySelector('.on');
+  return b?b.dataset.v:'';
+}
+
+function onSegClick(e){
+  const b=e.target.closest('button');
+  if(!b)return;
+  segSet(e.currentTarget,b.dataset.v);
+  e.currentTarget.classList.remove('bad');
+}
+
+segGender.addEventListener('click',onSegClick);
+segLook.addEventListener('click',onSegClick);
+pfBio.addEventListener('input',function(){pfCnt.textContent=pfBio.value.length+'/150';});
+
+function toast(msg,soft){
+  toastEl.classList.toggle('soft',!!soft);
+  toastEl.textContent=msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){toastEl.classList.remove('show');},2800);
+}
+
+function clearBad(){
+  const bads=document.querySelectorAll('.bad');
+  for(let i=0;i<bads.length;i++)bads[i].classList.remove('bad');
+}
+
+function fail(el,errEl,msg){
+  clearBad();
+  errEl.textContent=msg;
+  el.classList.add('bad');
+  toast(msg);
+  if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.focus();
+}
+
+function openSetup(edit){
+  state.editing=edit;
+  clearBad();
+  const me=edit?state.me:null;
+  $('setupTitle').textContent=edit?'프로필 수정':'프로필 만들기';
+  $('setupHint').textContent=edit?'글로만 소개하는 프로필이에요':'2/2 · 사진 없이 글로만 소개해요';
+  pfBtn.textContent=edit?'저장':'시작하기';
+  pfCancel.hidden=!edit;
+  pfName.value=me?me.name:'';
+  pfYear.value=me?me.birthYear:'';
+  pfRegion.value=me?me.region:'';
+  pfJob.value=me?me.job:'';
+  pfBio.value=me?me.bio:'';
+  pfTags.value=me?me.tags.join(', '):'';
+  pfCnt.textContent=pfBio.value.length+'/150';
+  segSet(segGender,me?me.gender:'');
+  segSet(segLook,me?me.look:'');
+  pfErr.textContent='';
+  setView('setup');
+}
+
+$('pfRandom').addEventListener('click',function(){
+  const r=randomProfile();
+  pfName.value=r.name;
+  pfYear.value=r.birthYear;
+  pfRegion.value=r.region;
+  pfJob.value=r.job;
+  pfBio.value=r.bio;
+  pfTags.value=r.tags.join(', ');
+  pfCnt.textContent=pfBio.value.length+'/150';
+  segSet(segGender,r.gender);
+  segSet(segLook,r.look);
+  pfErr.textContent='';
+  clearBad();
+});
+
+function parseTags(raw){
+  const out=[];
+  const parts=raw.split(/[,\n#]+/);
+  for(let i=0;i<parts.length;i++){
+    const t=parts[i].trim();
+    if(t&&out.indexOf(t)<0)out.push(t);
+  }
+  return out;
+}
+
+const pnName=$('pnName'),pnCall=$('pnCall'),pnErr=$('pnErr'),pnBtn=$('pnBtn'),segPg=$('segPg'),segPers=$('segPers'),segPers2=$('segPers2');
+let pnRemake=false,pnGender='f',pnStyle='';
+
+function randName(g){return NAMES[g][Math.floor(Math.random()*NAMES[g].length)];}
+
+function paintPers(){
+  const all=[segPers,segPers2];
+  for(let k=0;k<all.length;k++){
+    for(let i=0;i<all[k].children.length;i++)all[k].children[i].classList.toggle('on',all[k].children[i].dataset.v===pnStyle);
+  }
+}
+
+function openPartner(remake){
+  pnRemake=remake;
+  clearBad();
+  pnGender=state.me.gender==='f'?'m':'f';
+  pnStyle='warm';
+  $('pnGenderBox').hidden=true;
+  segSet(segPg,pnGender);
+  $('pnTitle').textContent=remake?'AI 연인 다시 만들기':'AI 연인 만들기';
+  $('pnHint').textContent='당신을 위한 AI '+(pnGender==='f'?'여자친구':'남자친구')+'를 만들어요';
+  pnName.value=randName(pnGender);
+  pnCall.value=state.me.name;
+  pnErr.textContent='';
+  $('pnSkip').textContent=remake?'취소':'나중에 할게요';
+  paintPers();
+  setView('partner');
+}
+
+segPg.addEventListener('click',function(e){
+  const b=e.target.closest('button');
+  if(!b)return;
+  pnGender=b.dataset.v;
+  segSet(segPg,pnGender);
+  pnName.value=randName(pnGender);
+});
+
+function onPersClick(e){
+  const b=e.target.closest('button');
+  if(!b)return;
+  pnStyle=b.dataset.v;
+  paintPers();
+}
+
+segPers.addEventListener('click',onPersClick);
+segPers2.addEventListener('click',onPersClick);
+
+$('partnerForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const name=pnName.value.trim();
+  const call=pnCall.value.trim();
+  if(name.length<2||name.length>8)return fail(pnName,pnErr,'AI 이름은 2~8자로 입력해 주세요');
+  if(!NAME_RE.test(name))return fail(pnName,pnErr,'이름은 한글·영문·숫자·밑줄만 쓸 수 있어요');
+  if(call.length<1||call.length>10)return fail(pnCall,pnErr,'부르는 이름은 1~10자로 입력해 주세요');
+  clearBad();
+  pnErr.textContent='';
+  pnBtn.disabled=true;
+  try{
+    let pt=null;
+    await runFinding(2600,PARTNER_MSG,async function(){
+      pt=await api.createPartner({gender:pnGender,name:name,call:call,style:pnStyle});
+      await loadSocial();
+      await loadDeck();
+    },function(){setView('deck');});
+    let m=null;
+    for(let i=0;i<state.matches.length;i++)if(state.matches[i].id===pt.id)m=state.matches[i];
+    if(m)openChat(m);
+    else enterDeck();
+  }catch(err){
+    pnErr.textContent=err.message;
+    toast(err.message);
+  }finally{
+    pnBtn.disabled=false;
+  }
+});
+
+$('pnSkip').addEventListener('click',async function(){
+  if(pnRemake){setView('settings');return;}
+  await loadSocial();
+  await loadDeck();
+  setView('deck');
+});
+
+$('remakePartner').addEventListener('click',function(){openPartner(true);});
+$('clearMem').addEventListener('click',async function(){
+  await api.clearMems();
+  for(let i=0;i<state.matches.length;i++)state.matches[i].mem=newMem();
+  toast('AI가 기억한 내용을 지웠어요',true);
+});
+bindSubmit($('partnerForm'));
+pnName.addEventListener('input',function(e){e.currentTarget.classList.remove('bad');});
+pnCall.addEventListener('input',function(e){e.currentTarget.classList.remove('bad');});
+
+async function afterAuth(session){
+  state.me=session.profile;
+  state.ui=await api.getUi();
+  applyTheme();
+  if(!session.profile){openSetup(false);return;}
+  const pt=await api.getPartner();
+  if(!pt){openPartner(false);return;}
+  state.filter={type:'all',value:''};
+  await runFinding(2800,FIND_MSG,async function(){
+    await loadSocial();
+    await loadDeck();
+  },function(){setView('deck');enterDeck();});
+}
+
+function pickGender(){
+  return new Promise(function(res){
+    dlg('나는','성별을 선택해 주세요. 이성이 추천돼요',[{t:'남성',f:function(){res('m');}},{t:'여성',f:function(){res('f');}}],{onClose:function(){res(null);}});
+  });
+}
+
+async function boot(){
+  setView('splash');
+  let session=null;
+  let g=null;
+  try{
+    if(await api.isFirstRun()){
+      g=await pickGender();
+    }
+    session=await api.debugLogin(g);
+  }catch(e){}
+  if(session)afterAuth(session);
+  else{
+    findEl.classList.remove('on');
+    findEl.setAttribute('aria-hidden','true');
+    splashBtns.hidden=false;
+  }
+}
+
+$('goLogin').addEventListener('click',function(){setView('login');});
+$('goSignup').addEventListener('click',function(){setView('signup');});
+
+const goButtons=document.querySelectorAll('[data-go]');
+for(let i=0;i<goButtons.length;i++){
+  goButtons[i].addEventListener('click',function(e){
+    lgErr.textContent='';
+    suErr.textContent='';
+    setView(e.currentTarget.dataset.go);
+  });
+}
+
+$('loginForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const email=lgEmail.value.trim();
+  const pw=lgPw.value;
+  if(!EMAIL_RE.test(email))return fail(lgEmail,lgErr,'이메일 형식을 확인해 주세요');
+  if(!pw)return fail(lgPw,lgErr,'비밀번호를 입력해 주세요');
+  clearBad();
+  lgErr.textContent='';
+  lgBtn.disabled=true;
+  try{
+    const session=await api.signIn(email,pw);
+    lgPw.value='';
+    await afterAuth(session);
+  }catch(err){
+    lgErr.textContent=err.message;
+    toast(err.message);
+  }finally{
+    lgBtn.disabled=false;
+  }
+});
+
+$('signupForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const email=suEmail.value.trim();
+  const pw=suPw.value;
+  if(!EMAIL_RE.test(email))return fail(suEmail,suErr,'이메일 형식을 확인해 주세요');
+  if(pw.length<6)return fail(suPw,suErr,'비밀번호는 6자 이상이어야 해요');
+  if(pw!==suPw2.value)return fail(suPw2,suErr,'비밀번호가 서로 달라요');
+  clearBad();
+  suErr.textContent='';
+  suBtn.disabled=true;
+  try{
+    await api.signUp(email,pw);
+    suPw.value='';
+    suPw2.value='';
+    openSetup(false);
+  }catch(err){
+    suErr.textContent=err.message;
+    toast(err.message);
+  }finally{
+    suBtn.disabled=false;
+  }
+});
+
+$('setupForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const name=pfName.value.trim();
+  const year=parseInt(pfYear.value,10);
+  const nowYear=new Date().getFullYear();
+  const gender=segVal(segGender);
+  const look=gender==='m'?'f':'m';
+  const region=pfRegion.value.trim();
+  const bio=pfBio.value.trim();
+  const tags=parseTags(pfTags.value);
+  if(name.length<2||name.length>12)return fail(pfName,pfErr,'닉네임은 2~12자로 입력해 주세요');
+  if(!NAME_RE.test(name))return fail(pfName,pfErr,'닉네임은 한글·영문·숫자·밑줄만 쓸 수 있어요');
+  if(!Number.isInteger(year))return fail(pfYear,pfErr,'출생연도를 숫자로 입력해 주세요');
+  if(year>nowYear-18)return fail(pfYear,pfErr,'만 18세 이상만 가입할 수 있어요');
+  if(year<nowYear-80)return fail(pfYear,pfErr,'출생연도를 다시 확인해 주세요');
+  if(!gender)return fail(segGender,pfErr,'성별을 선택해 주세요');
+  if(region.length<2)return fail(pfRegion,pfErr,'지역을 2자 이상 입력해 주세요');
+  if(bio.length<10)return fail(pfBio,pfErr,'자기소개를 10자 이상 적어 주세요');
+  if(BAD_RE.test(name+' '+bio+' '+pfTags.value+' '+pfJob.value))return fail(pfBio,pfErr,'부적절한 표현이 포함되어 있어요');
+  if(tags.length<1)return fail(pfTags,pfErr,'관심사를 1개 이상 입력해 주세요');
+  if(tags.length>5)return fail(pfTags,pfErr,'관심사는 최대 5개까지 입력할 수 있어요');
+  for(let i=0;i<tags.length;i++){
+    if(tags[i].length>10)return fail(pfTags,pfErr,'관심사 하나는 10자 이하로 적어 주세요');
+  }
+  clearBad();
+  pfErr.textContent='';
+  const profile={name:name,birthYear:year,age:nowYear-year,gender:gender,look:look,region:region,job:pfJob.value.trim(),bio:bio,tags:tags};
+  const editing=state.editing;
+  pfBtn.disabled=true;
+  try{
+    state.me=await api.saveProfile(profile);
+    if(!editing){
+      state.filter={type:'all',value:''};
+      openPartner(false);
+    }else{
+      await refreshLikes();
+      await loadDeck();
+      setView('me');
+    }
+  }catch(err){
+    pfErr.textContent=err.message;
+    toast(err.message);
+  }finally{
+    pfBtn.disabled=false;
+  }
+});
+
+pfCancel.addEventListener('click',function(){setView('me');});
+$('editProfile').addEventListener('click',function(){openSetup(true);});
+
+$('logout').addEventListener('click',async function(){
+  await api.resetAll();
+  clearInterval(proTimer);
+  clearTimeout(revealTimer);
+  closeSheet();
+  closeMatch();
+  clearDeck();
+  state.matches=[];
+  state.likes=[];
+  state.me=null;
+  state.chat=null;
+  state.history=[];
+  state.index=0;
+  state.filter={type:'all',value:''};
+  searchInput.value='';
+  updateBadge();
+  const g=await pickGender();
+  const session=await api.debugLogin(g);
+  await afterAuth(session);
+});
+
+const HSEL='.hscroll,.strip,.chipRow,#deckTop';
+let hEl=null,hx=0,hl=0,hMoved=false;
+
+document.addEventListener('pointerdown',function(e){
+  if(e.pointerType!=='mouse'||e.button!==0)return;
+  const el=e.target.closest(HSEL);
+  if(!el||el.scrollWidth<=el.clientWidth)return;
+  hEl=el;hx=e.clientX;hl=el.scrollLeft;hMoved=false;
+});
+document.addEventListener('pointermove',function(e){
+  if(!hEl)return;
+  const d=e.clientX-hx;
+  if(!hMoved&&Math.abs(d)<5)return;
+  hMoved=true;
+  hEl.classList.add('drag');
+  hEl.scrollLeft=hl-d;
+});
+document.addEventListener('pointerup',function(){
+  if(!hEl)return;
+  const el=hEl;
+  hEl=null;
+  el.classList.remove('drag');
+  if(hMoved){
+    const stop=function(ev){ev.stopPropagation();ev.preventDefault();};
+    window.addEventListener('click',stop,{capture:true,once:true});
+    setTimeout(function(){window.removeEventListener('click',stop,true);},0);
+  }
+});
+document.addEventListener('wheel',function(e){
+  if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
+  const el=e.target.closest&&e.target.closest(HSEL);
+  if(!el||el.scrollWidth<=el.clientWidth)return;
+  const max=el.scrollWidth-el.clientWidth;
+  const next=el.scrollLeft+e.deltaY;
+  if(next<0&&el.scrollLeft<=0)return;
+  if(next>max&&el.scrollLeft>=max)return;
+  e.preventDefault();
+  el.scrollLeft=next;
+},{passive:false});
+
+const VSEL='.page,.auth,#chatLog,.sheetBody,#matchList';
+let vEl=null,vy=0,vt=0,vMoved=false;
+
+document.addEventListener('pointerdown',function(e){
+  if(e.pointerType!=='mouse'||e.button!==0)return;
+  if(e.target.closest(HSEL+',input,textarea,select,.rng,.bubble,#stack'))return;
+  let el=e.target.closest(VSEL);
+  while(el&&el.scrollHeight<=el.clientHeight)el=el.parentElement&&el.parentElement.closest(VSEL);
+  if(!el)return;
+  vEl=el;vy=e.clientY;vt=el.scrollTop;vMoved=false;
+});
+document.addEventListener('pointermove',function(e){
+  if(!vEl)return;
+  const d=e.clientY-vy;
+  if(!vMoved&&Math.abs(d)<5)return;
+  vMoved=true;
+  vEl.scrollTop=vt-d;
+});
+document.addEventListener('pointerup',function(){
+  if(!vEl)return;
+  vEl=null;
+  if(vMoved){
+    const stop=function(ev){ev.stopPropagation();ev.preventDefault();};
+    window.addEventListener('click',stop,{capture:true,once:true});
+    setTimeout(function(){window.removeEventListener('click',stop,true);},0);
+  }
+});
+
+function bindSubmit(form){
+  const btn=form.querySelector('button[type="submit"]');
+  const run=function(){form.dispatchEvent(new Event('submit',{cancelable:true}));};
+  btn.type='button';
+  btn.addEventListener('click',run);
+  form.addEventListener('keydown',function(e){
+    if(e.defaultPrevented||e.key!=='Enter'||e.isComposing||e.target.tagName!=='INPUT')return;
+    e.preventDefault();
+    run();
+  });
+}
+
+bindSubmit($('loginForm'));
+bindSubmit($('signupForm'));
+bindSubmit($('setupForm'));
+bindSubmit(chatForm);
+
+const clearOnInput=[lgEmail,lgPw,suEmail,suPw,suPw2,pfName,pfYear,pfRegion,pfJob,pfBio,pfTags];
+for(let i=0;i<clearOnInput.length;i++){
+  clearOnInput[i].addEventListener('input',function(e){e.currentTarget.classList.remove('bad');});
+}
+
+$('dbgLogin').hidden=true;
+$('dbgLogin').addEventListener('click',async function(){
+  try{
+    const session=await api.debugLogin();
+    await afterAuth(session);
+  }catch(err){
+    toast(err.message);
+  }
+});
+
+boot();
+})();
+</script>
+</body>
+</html>
